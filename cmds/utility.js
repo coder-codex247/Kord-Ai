@@ -772,7 +772,7 @@ function delay(ms) { return new Promise((res) => setTimeout(res, ms)); }
 
 async function getPublicIP() { return new Promise((resolve, reject) => { http.get({ host: 'api.ipify.org', port: 80, path: '/' }, function (resp) { let data = ''; resp.on('data', chunk => data += chunk); resp.on('end', () => resolve(data)); }).on('error', err => reject(err)); }); }
 
-kord({ cmd: "hack|trace|blacktrace", desc: "Realistic hacking prank simulation", fromMe: wtype, type: " utilities" }, async (m, text) => { try { let target = text || m.mentionedJid?.[0] || m.reply_message?.sender || "Unknown User"; if (typeof target === "object") target = target.jid;
+kord({ cmd: "hack|trace|blacktrace", desc: "Realistic hacking prank simulation", fromMe: wtype, type: "utilities" }, async (m, text) => { try { let target = text || m.mentionedJid?.[0] || m.reply_message?.sender || "Unknown User"; if (typeof target === "object") target = target.jid;
 
 await m.send(`💻 Initializing BlackTrace Protocol...`);
 await delay(1000);
