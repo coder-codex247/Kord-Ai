@@ -51,6 +51,537 @@ cmd: "join",
   }
 })
 
+
+
+
+
+
+
+
+
+
+
+const fs = require("fs");
+const path = require("path");
+
+let activeGames = {}; // { groupId: { difficulty, answer, timer, startTime, round, streak, scores, hints, lastSolver } }
+
+const DIFFICULTY_CONFIG = {
+  easy: { points: 10, timeLimit: 45, emoji: "🟢", color: "GREEN" },
+  medium: { points: 20, timeLimit: 35, emoji: "🟡", color: "YELLOW" },
+  hard: { points: 30, timeLimit: 25, emoji: "🔴", color: "RED" }
+};
+
+const GAME_EMOJIS = {
+  start: "🎮",
+  correct: "✅",
+  wrong: "❌",
+  timeout: "⏰",
+  hint: "💡",
+  trophy: "🏆",
+  fire: "🔥",
+  brain: "🧠",
+  star: "⭐",
+  crown: "👑"
+};
+
+function shuffleWord(word) {
+  let shuffled = word;
+  let attempts = 0;
+  // Ensure the shuffled word is different from original
+  while (shuffled === word && attempts < 10) {
+    shuffled = word.split("").sort(() => 0.5 - Math.random()).join("");
+    attempts++;
+  }
+  return shuffled;
+}
+
+function getRandomWord(difficulty) {
+  const dataPath = path.join(__dirname, "..", "core", "unscramble_word.json");
+  const words = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+  const list = words[difficulty] || [];
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+function generateHint(word) {
+  const hints = [];
+  
+  // Length hint
+  hints.push(`${word.length} letters`);
+  
+  // First letter hint
+  hints.push(`starts with "${word[0].toUpperCase()}"`);
+  
+  // Vowel count hint
+  const vowels = word.match(/[aeiou]/gi) || [];
+  hints.push(`${vowels.length} vowel${vowels.length !== 1 ? 's' : ''}`);
+  
+  // Category hint (you can expand this based on your word categories)
+  if (word.length <= 4) hints.push("short word");
+  else if (word.length >= 8) hints.push("long word");
+  
+  return hints[Math.floor(Math.random() * hints.length)];
+}
+
+function formatTime(seconds) {
+  return `${seconds}s`;
+}
+
+function createProgressBar(remaining, total) {
+  const filled = Math.floor((remaining / total) * 10);
+  const empty = 10 - filled;
+  return "█".repeat(filled) + "░".repeat(empty);
+}
+
+async function sendGameStats(m, game) {
+  const topScorers = Object.entries(game.scores)
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 5)
+    .map(([user, score], index) => {
+      const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "🏅";
+      return `${medal} @${user.split("@")[0]}: ${score} pts`;
+    });
+
+  const stats = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.trophy} GAME STATISTICS ${GAME_EMOJIS.trophy}  │
+├─────────────────────┤
+│ Round: ${game.round}               │
+│ Streak: ${game.streak} ${game.streak > 5 ? GAME_EMOJIS.fire : ""}          │
+│ Difficulty: ${DIFFICULTY_CONFIG[game.difficulty].emoji} ${game.difficulty.toUpperCase()}      │
+├─────────────────────┤
+│     TOP SCORERS     │
+${topScorers.map(scorer => `│ ${scorer.padEnd(19)} │`).join('\n')}
+${topScorers.length === 0 ? `│ No scores yet!     │` : ''}
+╰─────────────────────╯`;
+
+  await m.send(stats, {
+    mentions: Object.keys(game.scores)
+  });
+}
+
+async function sendNextWord(m, difficulty) {
+  const word = getRandomWord(difficulty);
+  const shuffled = shuffleWord(word);
+  const config = DIFFICULTY_CONFIG[difficulty];
+  
+  const game = activeGames[m.chat];
+  if (game) {
+    game.round++;
+    game.answer = word;
+    game.startTime = Date.now();
+    game.hints = 0;
+  } else {
+    activeGames[m.chat] = {
+      difficulty,
+      answer: word,
+      startTime: Date.now(),
+      round: 1,
+      streak: 0,
+      scores: {},
+      hints: 0,
+      lastSolver: null
+    };
+  }
+
+  const gameState = activeGames[m.chat];
+  
+  // Clear existing timer
+  if (gameState.timer) {
+    clearTimeout(gameState.timer);
+  }
+
+  const gameMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.start} UNSCRAMBLE CHALLENGE ${GAME_EMOJIS.start}  │
+├─────────────────────┤
+│                     │
+│   ${shuffled.toUpperCase().split('').join(' ')}   │
+│                     │
+├─────────────────────┤
+│ ${config.emoji} ${difficulty.toUpperCase()} • Round ${gameState.round}    │
+│ ${GAME_EMOJIS.star} ${config.points} Points • ⏰ ${config.timeLimit}s    │
+│ 💡 Type "hint" for clue │
+╰─────────────────────╯
+
+${GAME_EMOJIS.brain} *Unscramble the word above!*
+_First correct answer wins ${config.points} points!_`;
+
+  await m.send(gameMessage);
+
+  // Set timeout for the word
+  gameState.timer = setTimeout(async () => {
+    if (activeGames[m.chat] && activeGames[m.chat].answer === word) {
+      activeGames[m.chat].streak = 0; // Reset streak on timeout
+      
+      const timeoutMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.timeout} TIME'S UP! ${GAME_EMOJIS.timeout}          │
+├─────────────────────┤
+│ The word was:       │
+│   *${word.toUpperCase()}*   │
+│                     │
+│ ${GAME_EMOJIS.brain} Better luck next time! │
+╰─────────────────────╯
+
+_Next word coming up..._`;
+      
+      await m.send(timeoutMessage);
+      
+      // Send next word after a short delay
+      setTimeout(() => {
+        if (activeGames[m.chat]) {
+          sendNextWord(m, difficulty);
+        }
+      }, 3000);
+    }
+  }, config.timeLimit * 1000);
+}
+
+kord({
+  cmd: "unscramble",
+  desc: "Enhanced word unscrambling game with scoring and timers",
+  fromMe: wtype,
+  type: "group"
+}, async (m, text) => {
+  const input = text?.trim().toLowerCase();
+
+  if (!input) {
+    const helpMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.start} UNSCRAMBLE GAME ${GAME_EMOJIS.start}     │
+├─────────────────────┤
+│                     │
+│ ${GAME_EMOJIS.brain} START GAME:          │
+│ • ${prefix}unscramble easy     │
+│ • ${prefix}unscramble medium   │
+│ • ${prefix}unscramble hard     │
+│                     │
+│ ${GAME_EMOJIS.trophy} GAME CONTROLS:       │
+│ • ${prefix}unscramble end      │
+│ • ${prefix}unscramble stats    │
+│ • Type "hint" for clue │
+│                     │
+│ ${GAME_EMOJIS.star} DIFFICULTY REWARDS:   │
+│ • 🟢 Easy: 10 pts (45s) │
+│ • 🟡 Medium: 20 pts (35s)│
+│ • 🔴 Hard: 30 pts (25s) │
+╰─────────────────────╯
+
+${GAME_EMOJIS.fire} *Challenge your friends and climb the leaderboard!*`;
+    
+    return await m.send(helpMessage);
+  }
+
+  if (input === "end") {
+    const game = activeGames[m.chat];
+    if (game?.timer) {
+      clearTimeout(game.timer);
+    }
+    
+    if (game && Object.keys(game.scores).length > 0) {
+      await sendGameStats(m, game);
+    }
+    
+    delete activeGames[m.chat];
+    return await m.send(`
+╭─────────────────────╮
+│  ${GAME_EMOJIS.correct} GAME ENDED ${GAME_EMOJIS.correct}         │
+├─────────────────────┤
+│ Thanks for playing! │
+│ ${GAME_EMOJIS.crown} Great job everyone! ${GAME_EMOJIS.crown}  │
+╰─────────────────────╯`);
+  }
+
+  if (input === "stats") {
+    const game = activeGames[m.chat];
+    if (!game) {
+      return await m.send(`${GAME_EMOJIS.wrong} No active game found! Start one with \`${prefix}unscramble easy\``);
+    }
+    return await sendGameStats(m, game);
+  }
+
+  if (["easy", "medium", "hard"].includes(input)) {
+    // Clear any existing game
+    const existingGame = activeGames[m.chat];
+    if (existingGame?.timer) {
+      clearTimeout(existingGame.timer);
+    }
+    
+    const startMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.start} GAME STARTING! ${GAME_EMOJIS.start}      │
+├─────────────────────┤
+│ Difficulty: ${DIFFICULTY_CONFIG[input].emoji} ${input.toUpperCase()}   │
+│ Get ready to think! │
+╰─────────────────────╯`;
+    
+    await m.send(startMessage);
+    
+    // Start the game after a short delay
+    setTimeout(() => {
+      sendNextWord(m, input);
+    }, 2000);
+    return;
+  }
+
+  await m.send(`${GAME_EMOJIS.wrong} Invalid option! Use \`easy\`, \`medium\`, \`hard\`, \`end\`, or \`stats\`.`);
+});
+
+kord({
+  on: "all",
+  fromMe: false
+}, async (m, text) => {
+  const game = activeGames[m.chat];
+  if (!game || !text || text.length < 2) return;
+
+  const guess = text.trim().toLowerCase();
+  
+  // Handle hint requests
+  if (guess === "hint" || guess === "💡") {
+    if (game.hints >= 2) {
+      return await m.send(`${GAME_EMOJIS.wrong} No more hints available for this word!`);
+    }
+    
+    game.hints++;
+    const hint = generateHint(game.answer);
+    const hintMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.hint} HINT ${game.hints}/2 ${GAME_EMOJIS.hint}           │
+├─────────────────────┤
+│ ${hint.padEnd(19)} │
+╰─────────────────────╯`;
+    
+    return await m.send(hintMessage);
+  }
+
+  // Check if guess is correct
+  if (guess === game.answer) {
+    // Clear the timer
+    if (game.timer) {
+      clearTimeout(game.timer);
+    }
+    
+    // Calculate points (bonus for speed and fewer hints)
+    const timeTaken = (Date.now() - game.startTime) / 1000;
+    const basePoints = DIFFICULTY_CONFIG[game.difficulty].points;
+    const speedBonus = Math.max(0, Math.floor((DIFFICULTY_CONFIG[game.difficulty].timeLimit - timeTaken) / 2));
+    const hintPenalty = game.hints * 2;
+    const totalPoints = Math.max(1, basePoints + speedBonus - hintPenalty);
+    
+    // Update scores
+    if (!game.scores[m.sender]) {
+      game.scores[m.sender] = 0;
+    }
+    game.scores[m.sender] += totalPoints;
+    
+    // Update streak
+    if (game.lastSolver === m.sender) {
+      game.streak++;
+    } else {
+      game.streak = 1;
+      game.lastSolver = m.sender;
+    }
+    
+    // Special streak bonuses
+    let streakBonus = 0;
+    if (game.streak >= 3) {
+      streakBonus = game.streak * 2;
+      game.scores[m.sender] += streakBonus;
+    }
+    
+    const successMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.correct} CORRECT! ${GAME_EMOJIS.correct}            │
+├─────────────────────┤
+│ @${m.sender.split("@")[0].padEnd(17)} │
+│ got "${game.answer.toUpperCase()}" right!     │
+│                     │
+│ ${GAME_EMOJIS.star} Points: +${totalPoints}${speedBonus > 0 ? ` (+${speedBonus} speed)` : ''}  │
+${streakBonus > 0 ? `│ ${GAME_EMOJIS.fire} Streak: ${game.streak}! +${streakBonus} bonus │` : ''}
+│ ⏰ Time: ${formatTime(Math.floor(timeTaken))}           │
+│ Total: ${game.scores[m.sender]} pts          │
+╰─────────────────────╯
+
+_Next word in 3 seconds..._`;
+    
+    await m.send(successMessage, {
+      mentions: [m.sender]
+    });
+    
+    // Send next word after a delay
+    setTimeout(() => {
+      if (activeGames[m.chat]) {
+        sendNextWord(m, game.difficulty);
+      }
+    }, 3000);
+    
+    return;
+  }
+  
+  // Handle wrong guesses (only if they seem like attempts)
+  if (guess.length >= 3 && /^[a-z]+$/.test(guess)) {
+    const encouragement = [
+      "Not quite! Keep trying! 💪",
+      "Close, but not quite! 🤔",
+      "Try again! You've got this! 🎯",
+      "Almost there! Think harder! 🧠",
+      "Nope, but don't give up! 🔥"
+    ];
+    
+    // Don't spam - only respond occasionally to wrong guesses
+    if (Math.random() < 0.3) {
+      await m.send(encouragement[Math.floor(Math.random() * encouragement.length)]);
+    }
+  }
+});
+
+
+
+
+
+
+
+
+
+
+let recentActivity = {}; // { groupId: { jid1: timestamp, jid2: timestamp, ... } }
+
+kord({
+  on: "all",
+  fromMe: false
+}, async (m) => {
+  if (!m.isGroup || !m.sender) return;
+
+  const groupId = m.chat;
+  recentActivity[groupId] = recentActivity[groupId] || {};
+  recentActivity[groupId][m.sender] = Date.now();
+});
+
+kord({
+  cmd: "listactive",
+  desc: "list active members in past 5 mins",
+  fromMe: wtype,
+  gc: true,
+  type: "group"
+}, async (m) => {
+  const groupId = m.chat;
+  const group = await m.client.groupMetadata(groupId);
+  const participants = group.participants;
+  const activity = recentActivity[groupId] || {};
+  const now = Date.now();
+  const fiveMinutes = 5 * 60 * 1000;
+
+  const activeUsers = Object.entries(activity)
+    .filter(([_, timestamp]) => now - timestamp <= fiveMinutes)
+    .map(([jid, timestamp], i) => {
+      const minsAgo = Math.round((now - timestamp) / 60000);
+      return `• @${jid.split("@")[0]} (${minsAgo} min${minsAgo !== 1 ? "s" : ""} ago)`;
+    });
+
+  if (activeUsers.length === 0) {
+    return await m.send("😴 No one has been active in the past 5 minutes.");
+  }
+
+  const response = `🟢 *Active in last 5 minutes:*\n\n${activeUsers.join("\n")}`;
+  const mentionJids = activeUsers.map(line => line.match(/@(.+?)\s/)).filter(Boolean).map(m => m[1] + "@s.whatsapp.net");
+
+  await m.send(response, { mentions: mentionJids });
+});
+
+
+
+
+
+// Command: silence
+kord({
+  cmd: "silence",
+  desc: "Silence a user (auto-delete messages)",
+  fromMe: wtype,
+  adminOnly: true,
+  gc: true,
+  type: "group"
+}, async (m, text) => {
+  const botAd = await isBotAdmin(m);
+  if (!botAd) return await m.send("_✘ Bot must be admin to silence users._");
+
+  const user = m.mentionedJid[0] || m.quoted?.sender || text;
+  if (!user) return await m.send("✘ Mention or reply to the user to silence.");
+
+  const jid = parsedJid(user)[0];
+  const data = await getData("silenced") || {};
+  data[m.chat] = data[m.chat] || [];
+
+  if (!data[m.chat].includes(jid)) {
+    data[m.chat].push(jid);
+    await storeData("silenced", data);
+    return await m.send(`👮‍♂️ @${jid.split("@")[0]} has been *silenced*.\nAll their messages will be deleted.`, { mentions: [jid] });
+  } else {
+    return await m.send(`⚠️ @${jid.split("@")[0]} is already silenced.`, { mentions: [jid] });
+  }
+});
+
+// Command: unsilence
+kord({
+  cmd: "unsilence",
+  desc: "Unsilence a user",
+  fromMe: wtype,
+  adminOnly: true,
+  gc: true,
+  type: "group"
+}, async (m, text) => {
+  const user = m.mentionedJid[0] || m.quoted?.sender || text;
+  if (!user) return await m.send("✘ Mention or reply to the user to unsilence.");
+
+  const jid = parsedJid(user)[0];
+  const data = await getData("silenced") || {};
+  data[m.chat] = data[m.chat] || [];
+
+  const index = data[m.chat].indexOf(jid);
+  if (index !== -1) {
+    data[m.chat].splice(index, 1);
+    await storeData("silenced", data);
+    return await m.send(`🔊 @${jid.split("@")[0]} has been *unsilenced*.`, { mentions: [jid] });
+  } else {
+    return await m.send(`ℹ️ @${jid.split("@")[0]} is not currently silenced.`, { mentions: [jid] });
+  }
+});
+
+// Message listener to auto-delete messages from silenced users
+kord({
+  on: "all"
+}, async (m, text) => {
+  if (!m.isGroup) return;
+  if (!await isBotAdmin(m)) return;
+
+  const data = await getData("silenced") || {};
+  if (!data[m.chat]) return;
+
+  const silencedUsers = data[m.chat];
+  if (silencedUsers.includes(m.sender)) {
+    await m.send(m, {}, "delete");
+  }
+});
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
 kord({
 cmd: "leave|left",
   desc: "leave a group",
