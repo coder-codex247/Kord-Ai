@@ -1579,3 +1579,800 @@ kord({
 
   return m.send(report)
 })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let CodexMaster = "2348058496605" // 🔁 Replace with your number, e.g., 2349012345678
+let listening = false
+
+// Store summon time
+let summonStart = 0
+
+// Signal strength visual generator
+function getSignalBar() {
+  const levels = [
+    "████░░░░░░ 25%",
+    "██████░░░░ 53%",
+    "███████░░░ 78%",
+    "████████░░ 84%",
+    "██████████ 100%",
+  ]
+  return levels[Math.floor(Math.random() * levels.length)]
+}
+
+// Typing simulation variants
+const endStatusOptions = [
+  "*Online & Listening...*",
+  "*Booting system modules...*",
+  "*Fetching encrypted memory...*",
+  "*Analyzing command stream...*",
+  "*Syncing neural threads...*",
+]
+
+// ASCII summon message
+function getCodexSummonText() {
+  return `
+╭─╼[ *💻 𝑺𝒚𝒔𝒕𝒆𝒎 𝑺𝒖𝒎𝒎𝒐𝒏𝒆𝒅* ]╾─╮
+│
+│  𝘾𝙊𝘿𝙀𝙓 𝙊𝙉𝙇𝙄𝙉𝙀 ✪
+│  ━━━━━━━
+│  🧠 Listening Mode: *Passive*
+│  👁️‍🗨️ Surveillance: *Enabled*
+│  ⚙️ System: *Stable | Running*
+│  📶 Signal Strength: ${getSignalBar()}
+│
+╰─╼[ 𝑪𝒐𝒅𝒆𝒙 𝑰𝒔 𝑾𝒂𝒕𝒄𝒉𝒊𝒏𝒈... ]╾─╯
+
+❝ You need no prefix to summon me... ❞
+❝ Just *say my name*... and I rise. ❞
+
+⚡ 𝙄 𝘼𝙢 𝘾𝙊𝘿𝙀𝙓 • 𝗜 𝗔𝗠 𝗛𝗜𝗠
+`
+}
+
+kord({
+  cmd: "codex",
+  desc: "Summon the AI Assistant",
+  fromMe: false,
+  type: "group"
+}, async ({ msg, client }) => {
+  const sender = msg.sender
+  const isMaster = sender.includes(CodexMaster)
+
+  if (isMaster) {
+    // Master summoned Codex
+    listening = true
+    summonStart = Date.now()
+
+    await msg.reply(getCodexSummonText())
+    await sleep(2000)
+
+    let typingVariant = endStatusOptions[Math.floor(Math.random() * endStatusOptions.length)]
+    await msg.send("*Codex is typing...*", { typing: true })
+    await sleep(2500 + Math.floor(Math.random() * 1000))
+    await msg.reply(`✅ ${typingVariant}`)
+
+  } else {
+    // Other user summoned Codex
+    await msg.reply(`
+╭─╼[ *Unauthorized Signal Detected* ]╾─╮
+│
+│  ❗ 𝘾𝙊𝘿𝙀𝙓 𝙄𝙨 𝙉𝙤𝙩 𝙔𝙤𝙪𝙧𝙨.
+│  This system is bound to its Master.
+│
+╰─╼[ 💻 Passive Mode Locked ]╾─╯
+
+Try again when granted access.
+`)
+  }
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let gameState = {};
+
+const isValidWord = (word) => {
+  return new Promise((resolve) => {
+    const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${word}`;
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          resolve(Array.isArray(json));
+        } catch {
+          resolve(false);
+        }
+      });
+    }).on('error', () => resolve(false));
+  });
+};
+
+const getRandomLetter = () => {
+  const alphabet = "abcdefghijklmnopqrstuvwxyz";
+  return alphabet[Math.floor(Math.random() * alphabet.length)];
+};
+
+const getMinLength = (round) => Math.min(3 + round, 8);
+
+const formatMention = (jid) => jid.replace(/@s\.whatsapp\.net$/, '');
+
+kord({
+  cmd: "wcg",
+  desc: "Start a Word Construction Game (WCG)",
+  type: "group",
+  fromMe: false
+}, async ({ m, client, args, groupMetadata, isGroup }) => {
+  const chatId = m.chat;
+
+  if (!isGroup) return m.reply("This game only works in groups.");
+
+  if (!args || args.length === 0) {
+    return m.reply("🎮 To start: `.wordgame start`\nTo join: `.join`\nTo end: `.wordgame end`");
+  }
+
+  if (args[0] === "start") {
+    if (gameState[chatId]) return m.reply("🛑 A game is already running in this group.");
+
+    gameState[chatId] = {
+      players: [],
+      round: 1,
+      currentPlayerIndex: 0,
+      currentLetter: getRandomLetter(),
+      requiredLength: 4,
+      usedWords: [],
+      playing: false
+    };
+
+    return m.reply(`🎉 Word Construction Game Started!\nPlayers, type \`.join\` to enter the game.\n\nAdmin, type \`.wordgame begin\` to start!`);
+  }
+
+  if (args[0] === "begin") {
+    const game = gameState[chatId];
+    if (!game) return m.reply("❌ No game has been created yet. Use `.wordgame start` first.");
+    if (game.playing) return m.reply("Game is already running.");
+
+    if (game.players.length < 2) {
+      return m.reply("⚠️ At least 2 players are required to begin.");
+    }
+
+    game.playing = true;
+    game.currentLetter = getRandomLetter();
+    game.requiredLength = getMinLength(game.round);
+    game.usedWords = [];
+
+    return m.reply(`✅ Game Started!\n🔤 Letter: *${game.currentLetter.toUpperCase()}*\n📏 Min length: *${game.requiredLength}*\n🎯 First Turn: @${formatMention(game.players[0])}`, {
+      mentions: [game.players[0]]
+    });
+  }
+
+  if (args[0] === "end") {
+    if (!gameState[chatId]) return m.reply("⚠️ No game is currently running.");
+    delete gameState[chatId];
+    return m.reply("🛑 Game ended.");
+  }
+});
+
+kord({
+  cmd: "join",
+  desc: "Join the word game",
+  type: "group",
+  fromMe: false
+}, async ({ m }) => {
+  const chatId = m.chat;
+  const game = gameState[chatId];
+  if (!game) return m.reply("❌ No game has been started. Use `.wordgame start`");
+
+  if (game.playing) return m.reply("🟡 Game already started. You can't join now.");
+  if (game.players.includes(m.sender)) return m.reply("✅ You've already joined.");
+
+  game.players.push(m.sender);
+  return m.reply(`🙋 Joined the game! Total players: *${game.players.length}*`);
+});
+
+kord({
+  on: "text",
+  fromMe: false
+}, async ({ m }) => {
+  const chatId = m.chat;
+  const game = gameState[chatId];
+  if (!game || !game.playing || !m.text || !m.sender) return;
+
+  const expectedPlayer = game.players[game.currentPlayerIndex];
+  const word = m.text.trim().toLowerCase();
+
+  if (m.sender !== expectedPlayer) return;
+
+  if (!word.startsWith(game.currentLetter)) {
+    return m.reply(`❌ Word must start with *${game.currentLetter.toUpperCase()}*`);
+  }
+
+  if (word.length < game.requiredLength) {
+    return m.reply(`📏 Word too short! Must be at least *${game.requiredLength}* letters.`);
+  }
+
+  if (game.usedWords.includes(word)) {
+    return m.reply("♻️ This word has already been used!");
+  }
+
+  const isReal = await isValidWord(word);
+  if (!isReal) {
+    return m.reply("🚫 Not a valid dictionary word!");
+  }
+
+  game.usedWords.push(word);
+  game.round++;
+  game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length;
+  game.currentLetter = getRandomLetter();
+  game.requiredLength = getMinLength(game.round);
+
+  const nextPlayer = game.players[game.currentPlayerIndex];
+  m.reply(`✅ Correct!\n\n🔤 Next Letter: *${game.currentLetter.toUpperCase()}*\n📏 Min Length: *${game.requiredLength}*\n🎯 Your turn: @${formatMention(nextPlayer)}`, {
+    mentions: [nextPlayer]
+  });
+});
+
+
+
+
+
+
+
+
+
+
+
+kord({
+  cmd: "hack|hacker",
+  desc: "🎭 Start a fake hacking simulation",
+  react: "💻",
+  fromMe: wtype,
+  type: "group"
+}, async (m) => {
+  const user = m.pushName;
+  const device = "Android v13";
+  const uptime = os.uptime();
+  const platform = os.platform();
+  const cpus = os.cpus()[0]?.model || "Unknown CPU";
+  const memory = (os.totalmem() / (1024 * 1024 * 1024)).toFixed(2);
+
+  const fakeIP = () => Array.from({ length: 4 }, () => Math.floor(Math.random() * 256)).join(".");
+  const fakeLoc = ["Lagos, Nigeria", "Moscow, Russia", "Silicon Valley, USA", "Undisclosed", "Beijing, China"];
+  const fakePorts = [21, 22, 80, 443, 3306, 8080, 5432, 27017];
+  const randomPort = () => fakePorts[Math.floor(Math.random() * fakePorts.length)];
+  const targetIP = fakeIP();
+
+  const progressBar = (percent) => {
+    const filled = Math.floor(percent / 10);
+    const empty = 10 - filled;
+    return '[' + '█'.repeat(filled) + '░'.repeat(empty) + '] ' + percent + '%';
+  };
+
+  const typeWriter = async (text, delay = 100) => {
+    let result = '';
+    for (let char of text) {
+      result += char;
+      await m.send(result);
+      await sleep(delay);
+    }
+  };
+
+  // Terminal header
+  await m.send(`\`\`\`
+╔══════════════════════════════════════╗
+║           HACKNET TERMINAL           ║
+║              v2.3.7                  ║
+╚══════════════════════════════════════╝
+\`\`\``);
+  await sleep(1500);
+
+  // System info
+  await m.send(`\`\`\`
+> USER: ${user}
+> DEVICE: ${device}
+> PLATFORM: ${platform}
+> UPTIME: ${Math.floor(uptime / 60)} minutes
+> MEMORY: ${memory}GB
+> CPU: ${cpus.slice(0, 20)}...
+\`\`\``);
+  await sleep(2000);
+
+  // Network scan
+  await m.send("🔍 *Scanning network perimeter...*");
+  await sleep(1200);
+  
+  for (let i = 20; i <= 100; i += 20) {
+    await m.send(`\`Network scan: ${progressBar(i)}\``);
+    await sleep(800);
+  }
+
+  // Target identification
+  await m.send(`\`\`\`
+> TARGET ACQUIRED
+> IP: ${targetIP}
+> LOCATION: ${fakeLoc[Math.floor(Math.random() * fakeLoc.length)]}
+> OPEN PORTS: ${randomPort()}, ${randomPort()}, ${randomPort()}
+\`\`\``);
+  await sleep(2000);
+
+  // Exploit phase
+  await m.send("⚡ *Launching exploit framework...*");
+  await sleep(1000);
+
+  const exploits = [
+    "Buffer overflow detected",
+    "SQL injection vector found",
+    "Privilege escalation available",
+    "Firewall bypass successful"
+  ];
+
+  for (let exploit of exploits) {
+    await m.send(`\`> ${exploit}\``);
+    await sleep(1200);
+  }
+
+  // Access phase
+  await m.send("🔐 *Establishing secure connection...*");
+  await sleep(1500);
+
+  for (let i = 25; i <= 100; i += 25) {
+    await m.send(`\`Connection: ${progressBar(i)}\``);
+    await sleep(1000);
+  }
+
+  // Data extraction
+  await m.send(`\`\`\`
+> ACCESS GRANTED
+> EXTRACTING DATA...
+> Files: 1,247 documents
+> Databases: 3 active connections
+> Credentials: 89 accounts
+\`\`\``);
+  await sleep(2000);
+
+  // Final dramatic effect
+  await m.send("⚠️ *SYSTEM COMPROMISED*");
+  await sleep(1000);
+  
+  await m.send(`\`\`\`
+    ⚠️  SECURITY BREACH DETECTED  ⚠️
+    
+    All systems have been infiltrated
+    Data extraction: COMPLETE
+    
+    Connection will terminate in 5 seconds...
+\`\`\``);
+  await sleep(3000);
+
+  await m.send("📴 *Connection terminated*");
+  await sleep(1500);
+
+  // Reveal
+
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let activeGames = {}; // { groupId: { difficulty, answer, timer, startTime, round, streak, scores, hints, lastSolver } }
+
+const DIFFICULTY_CONFIG = {
+  easy: { points: 10, timeLimit: 45, emoji: "🟢", color: "GREEN" },
+  medium: { points: 20, timeLimit: 35, emoji: "🟡", color: "YELLOW" },
+  hard: { points: 30, timeLimit: 25, emoji: "🔴", color: "RED" }
+};
+
+const GAME_EMOJIS = {
+  start: "🎮",
+  correct: "✅",
+  wrong: "❌",
+  timeout: "⏰",
+  hint: "💡",
+  trophy: "🏆",
+  fire: "🔥",
+  brain: "🧠",
+  star: "⭐",
+  crown: "👑"
+};
+
+function shuffleWord(word) {
+  let shuffled = word;
+  let attempts = 0;
+  // Ensure the shuffled word is different from original
+  while (shuffled === word && attempts < 10) {
+    shuffled = word.split("").sort(() => 0.5 - Math.random()).join("");
+    attempts++;
+  }
+  return shuffled;
+}
+
+function getRandomWord(difficulty) {
+  const dataPath = path.join(__dirname, "..", "core", "unscramble_word.json");
+  const words = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+  const list = words[difficulty] || [];
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+function generateHint(word) {
+  const hints = [];
+  
+  // Length hint
+  hints.push(`${word.length} letters`);
+  
+  // First letter hint
+  hints.push(`starts with "${word[0].toUpperCase()}"`);
+  
+  // Vowel count hint
+  const vowels = word.match(/[aeiou]/gi) || [];
+  hints.push(`${vowels.length} vowel${vowels.length !== 1 ? 's' : ''}`);
+  
+  // Category hint (you can expand this based on your word categories)
+  if (word.length <= 4) hints.push("short word");
+  else if (word.length >= 8) hints.push("long word");
+  
+  return hints[Math.floor(Math.random() * hints.length)];
+}
+
+function formatTime(seconds) {
+  return `${seconds}s`;
+}
+
+function createProgressBar(remaining, total) {
+  const filled = Math.floor((remaining / total) * 10);
+  const empty = 10 - filled;
+  return "█".repeat(filled) + "░".repeat(empty);
+}
+
+async function sendGameStats(m, game) {
+  const topScorers = Object.entries(game.scores)
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 5)
+    .map(([user, score], index) => {
+      const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "🏅";
+      return `${medal} @${user.split("@")[0]}: ${score} pts`;
+    });
+
+  const stats = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.trophy} GAME STATISTICS ${GAME_EMOJIS.trophy}  │
+├─────────────────────┤
+│ Round: ${game.round}               │
+│ Streak: ${game.streak} ${game.streak > 5 ? GAME_EMOJIS.fire : ""}          │
+│ Difficulty: ${DIFFICULTY_CONFIG[game.difficulty].emoji} ${game.difficulty.toUpperCase()}      │
+├─────────────────────┤
+│     TOP SCORERS     │
+${topScorers.map(scorer => `│ ${scorer.padEnd(19)} │`).join('\n')}
+${topScorers.length === 0 ? `│ No scores yet!     │` : ''}
+╰─────────────────────╯`;
+
+  await m.send(stats, {
+    mentions: Object.keys(game.scores)
+  });
+}
+
+async function sendNextWord(m, difficulty) {
+  const word = getRandomWord(difficulty);
+  const shuffled = shuffleWord(word);
+  const config = DIFFICULTY_CONFIG[difficulty];
+  
+  const game = activeGames[m.chat];
+  if (game) {
+    game.round++;
+    game.answer = word;
+    game.startTime = Date.now();
+    game.hints = 0;
+  } else {
+    activeGames[m.chat] = {
+      difficulty,
+      answer: word,
+      startTime: Date.now(),
+      round: 1,
+      streak: 0,
+      scores: {},
+      hints: 0,
+      lastSolver: null
+    };
+  }
+
+  const gameState = activeGames[m.chat];
+  
+  // Clear existing timer
+  if (gameState.timer) {
+    clearTimeout(gameState.timer);
+  }
+
+  const gameMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.start} UNSCRAMBLE CHALLENGE ${GAME_EMOJIS.start}  │
+├─────────────────────┤
+│                     │
+│   ${shuffled.toUpperCase().split('').join(' ')}   │
+│                     │
+├─────────────────────┤
+│ ${config.emoji} ${difficulty.toUpperCase()} • Round ${gameState.round}    │
+│ ${GAME_EMOJIS.star} ${config.points} Points • ⏰ ${config.timeLimit}s    │
+│ 💡 Type "hint" for clue │
+╰─────────────────────╯
+
+${GAME_EMOJIS.brain} *Unscramble the word above!*
+_First correct answer wins ${config.points} points!_`;
+
+  await m.send(gameMessage);
+
+  // Set timeout for the word
+  gameState.timer = setTimeout(async () => {
+    if (activeGames[m.chat] && activeGames[m.chat].answer === word) {
+      activeGames[m.chat].streak = 0; // Reset streak on timeout
+      
+      const timeoutMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.timeout} TIME'S UP! ${GAME_EMOJIS.timeout}          │
+├─────────────────────┤
+│ The word was:       │
+│   *${word.toUpperCase()}*   │
+│                     │
+│ ${GAME_EMOJIS.brain} Better luck next time! │
+╰─────────────────────╯
+
+_Next word coming up..._`;
+      
+      await m.send(timeoutMessage);
+      
+      // Send next word after a short delay
+      setTimeout(() => {
+        if (activeGames[m.chat]) {
+          sendNextWord(m, difficulty);
+        }
+      }, 3000);
+    }
+  }, config.timeLimit * 1000);
+}
+
+kord({
+  cmd: "unscramble",
+  desc: "Enhanced word unscrambling game with scoring and timers",
+  fromMe: wtype,
+  type: "group"
+}, async (m, text) => {
+  const input = text?.trim().toLowerCase();
+
+  if (!input) {
+    const helpMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.start} UNSCRAMBLE GAME ${GAME_EMOJIS.start}     │
+├─────────────────────┤
+│                     │
+│ ${GAME_EMOJIS.brain} START GAME:          │
+│ • ${prefix}unscramble easy     │
+│ • ${prefix}unscramble medium   │
+│ • ${prefix}unscramble hard     │
+│                     │
+│ ${GAME_EMOJIS.trophy} GAME CONTROLS:       │
+│ • ${prefix}unscramble end      │
+│ • ${prefix}unscramble stats    │
+│ • Type "hint" for clue │
+│                     │
+│ ${GAME_EMOJIS.star} DIFFICULTY REWARDS:   │
+│ • 🟢 Easy: 10 pts (45s) │
+│ • 🟡 Medium: 20 pts (35s)│
+│ • 🔴 Hard: 30 pts (25s) │
+╰─────────────────────╯
+
+${GAME_EMOJIS.fire} *Challenge your friends and climb the leaderboard!*`;
+    
+    return await m.send(helpMessage);
+  }
+
+  if (input === "end") {
+    const game = activeGames[m.chat];
+    if (game?.timer) {
+      clearTimeout(game.timer);
+    }
+    
+    if (game && Object.keys(game.scores).length > 0) {
+      await sendGameStats(m, game);
+    }
+    
+    delete activeGames[m.chat];
+    return await m.send(`
+╭─────────────────────╮
+│  ${GAME_EMOJIS.correct} GAME ENDED ${GAME_EMOJIS.correct}         │
+├─────────────────────┤
+│ Thanks for playing! │
+│ ${GAME_EMOJIS.crown} Great job everyone! ${GAME_EMOJIS.crown}  │
+╰─────────────────────╯`);
+  }
+
+  if (input === "stats") {
+    const game = activeGames[m.chat];
+    if (!game) {
+      return await m.send(`${GAME_EMOJIS.wrong} No active game found! Start one with \`${prefix}unscramble easy\``);
+    }
+    return await sendGameStats(m, game);
+  }
+
+  if (["easy", "medium", "hard"].includes(input)) {
+    // Clear any existing game
+    const existingGame = activeGames[m.chat];
+    if (existingGame?.timer) {
+      clearTimeout(existingGame.timer);
+    }
+    
+    const startMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.start} GAME STARTING! ${GAME_EMOJIS.start}      │
+├─────────────────────┤
+│ Difficulty: ${DIFFICULTY_CONFIG[input].emoji} ${input.toUpperCase()}   │
+│ Get ready to think! │
+╰─────────────────────╯`;
+    
+    await m.send(startMessage);
+    
+    // Start the game after a short delay
+    setTimeout(() => {
+      sendNextWord(m, input);
+    }, 2000);
+    return;
+  }
+
+  await m.send(`${GAME_EMOJIS.wrong} Invalid option! Use \`easy\`, \`medium\`, \`hard\`, \`end\`, or \`stats\`.`);
+});
+
+kord({
+  on: "all",
+  fromMe: false
+}, async (m, text) => {
+  const game = activeGames[m.chat];
+  if (!game || !text || text.length < 2) return;
+
+  const guess = text.trim().toLowerCase();
+  
+  // Handle hint requests
+  if (guess === "hint" || guess === "💡") {
+    if (game.hints >= 2) {
+      return await m.send(`${GAME_EMOJIS.wrong} No more hints available for this word!`);
+    }
+    
+    game.hints++;
+    const hint = generateHint(game.answer);
+    const hintMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.hint} HINT ${game.hints}/2 ${GAME_EMOJIS.hint}           │
+├─────────────────────┤
+│ ${hint.padEnd(19)} │
+╰─────────────────────╯`;
+    
+    return await m.send(hintMessage);
+  }
+
+  // Check if guess is correct
+  if (guess === game.answer) {
+    // Clear the timer
+    if (game.timer) {
+      clearTimeout(game.timer);
+    }
+    
+    // Calculate points (bonus for speed and fewer hints)
+    const timeTaken = (Date.now() - game.startTime) / 1000;
+    const basePoints = DIFFICULTY_CONFIG[game.difficulty].points;
+    const speedBonus = Math.max(0, Math.floor((DIFFICULTY_CONFIG[game.difficulty].timeLimit - timeTaken) / 2));
+    const hintPenalty = game.hints * 2;
+    const totalPoints = Math.max(1, basePoints + speedBonus - hintPenalty);
+    
+    // Update scores
+    if (!game.scores[m.sender]) {
+      game.scores[m.sender] = 0;
+    }
+    game.scores[m.sender] += totalPoints;
+    
+    // Update streak
+    if (game.lastSolver === m.sender) {
+      game.streak++;
+    } else {
+      game.streak = 1;
+      game.lastSolver = m.sender;
+    }
+    
+    // Special streak bonuses
+    let streakBonus = 0;
+    if (game.streak >= 3) {
+      streakBonus = game.streak * 2;
+      game.scores[m.sender] += streakBonus;
+    }
+    
+    const successMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.correct} CORRECT! ${GAME_EMOJIS.correct}            │
+├─────────────────────┤
+│ @${m.sender.split("@")[0].padEnd(17)} │
+│ got "${game.answer.toUpperCase()}" right!     │
+│                     │
+│ ${GAME_EMOJIS.star} Points: +${totalPoints}${speedBonus > 0 ? ` (+${speedBonus} speed)` : ''}  │
+${streakBonus > 0 ? `│ ${GAME_EMOJIS.fire} Streak: ${game.streak}! +${streakBonus} bonus │` : ''}
+│ ⏰ Time: ${formatTime(Math.floor(timeTaken))}           │
+│ Total: ${game.scores[m.sender]} pts          │
+╰─────────────────────╯
+
+_Next word in 3 seconds..._`;
+    
+    await m.send(successMessage, {
+      mentions: [m.sender]
+    });
+    
+    // Send next word after a delay
+    setTimeout(() => {
+      if (activeGames[m.chat]) {
+        sendNextWord(m, game.difficulty);
+      }
+    }, 3000);
+    
+    return;
+  }
+  
+  // Handle wrong guesses (only if they seem like attempts)
+  if (guess.length >= 3 && /^[a-z]+$/.test(guess)) {
+    const encouragement = [
+      "Not quite! Keep trying! 💪",
+      "Close, but not quite! 🤔",
+      "Try again! You've got this! 🎯",
+      "Almost there! Think harder! 🧠",
+      "Nope, but don't give up! 🔥"
+    ];
+    
+    // Don't spam - only respond occasionally to wrong guesses
+    if (Math.random() < 0.3) {
+      await m.send(encouragement[Math.floor(Math.random() * encouragement.length)]);
+    }
+  }
+});
+
+
+
+
+
