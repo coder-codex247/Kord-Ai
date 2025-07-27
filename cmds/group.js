@@ -2137,28 +2137,188 @@ kord({
 
 
 
+ // Enhanced Codex System with Natural Language Processing and AI Integration
 
-// Enhanced Codex with Natural Language Processing
-const activeListeners = new Map(); // Store active listening sessions
+// Global state to track active listening sessions
+let activeListeners = new Map();
 
+// Configuration
+const CONFIG = {
+  master: "2348058496605", // Master number
+  princess: "2348125371042", // Princess number  
+  queen: "2349167956058", // Queen number
+  diva: "2349017102944", // Diva number
+  listenDuration: 60000, // 1 minute in milliseconds
+  aiApiEndpoint: "https://api.kastg.xyz/api/ai/chatgptV4", // Free AI API
+};
+
+// Normalize phone numbers
+const normalizeJid = (jid) => jid.split(":")[0].replace(/[^0-9]/g, "");
+
+// Check user permissions
+const checkPermissions = (sender) => {
+  const normalizedSender = normalizeJid(sender);
+  return {
+    isMaster: normalizedSender === CONFIG.master,
+    isPrincess: normalizedSender === CONFIG.princess,
+    isQueen: normalizedSender === CONFIG.queen,
+    isDiva: normalizedSender === CONFIG.diva,
+    hasPermissions: [CONFIG.master, CONFIG.princess, CONFIG.queen, CONFIG.diva].includes(normalizedSender)
+  };
+};
+
+// AI Response Function
+const getAIResponse = async (message) => {
+  try {
+    const response = await fetch(CONFIG.aiApiEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: message,
+        model: "gpt-4"
+      })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.response || "I'm processing your request...";
+    }
+  } catch (error) {
+    console.log("AI API Error:", error);
+  }
+  
+  // Fallback responses if AI fails
+  const fallbackResponses = [
+    "I understand you, but let me think about that...",
+    "Interesting perspective. Tell me more...",
+    "I'm analyzing your request. Please wait...",
+    "Your message has been processed. How can I assist further?",
+    "I'm here and listening. What would you like me to do?",
+    "Processing... Your request is important to me.",
+    "I hear you loud and clear. What's next?",
+    "Command acknowledged. Standing by for further instructions."
+  ];
+  
+  return fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+};
+
+// Enhanced command parser with natural language understanding
+const parseCommand = (text) => {
+  const lowerText = text.toLowerCase();
+  
+  // Command mappings with various ways to express them
+  const commandMap = {
+    mute: ['mute', 'silence', 'quiet', 'shut up', 'stop talking', 'mute group', 'silence group'],
+    unmute: ['unmute', 'unsilence', 'allow talking', 'let everyone talk', 'unmute group', 'open group'],
+    lock: ['lock', 'restrict', 'admin only', 'lock settings', 'restrict settings'],
+    unlock: ['unlock', 'unrestrict', 'allow all', 'unlock settings', 'open settings'],
+    tagall: ['tag all', 'tagall', 'tag everyone', 'mention all', 'call everyone', 'everyone'],
+    kick: ['kick', 'remove', 'ban', 'throw out', 'get rid of'],
+    promote: ['promote', 'make admin', 'give admin', 'admin'],
+    demote: ['demote', 'remove admin', 'take admin', 'unadmin'],
+    antilink: ['antilink', 'anti link', 'block links', 'no links', 'stop links']
+  };
+  
+  // Check for commands in the text
+  for (const [command, variations] of Object.entries(commandMap)) {
+    if (variations.some(variation => lowerText.includes(variation))) {
+      return {
+        command,
+        originalText: text,
+        isCommand: true
+      };
+    }
+  }
+  
+  return {
+    command: null,
+    originalText: text,
+    isCommand: false
+  };
+};
+
+// Execute parsed commands
+const executeCommand = async (m, parsedCmd, permissions) => {
+  const { command, originalText } = parsedCmd;
+  
+  try {
+    switch (command) {
+      case 'mute':
+        if (!await isBotAdmin(m)) return await m.send("✘ I need admin rights to do that!");
+        await m.client.groupSettingUpdate(m.chat, "announcement");
+        return await m.send("✅ Group muted as requested, boss!");
+        
+      case 'unmute':
+        if (!await isBotAdmin(m)) return await m.send("✘ I need admin rights to do that!");
+        await m.client.groupSettingUpdate(m.chat, "not_announcement");
+        return await m.send("✅ Group unmuted! Everyone can talk now.");
+        
+      case 'lock':
+        if (!await isBotAdmin(m)) return await m.send("✘ I need admin rights to do that!");
+        await m.client.groupSettingUpdate(m.chat, 'locked');
+        return await m.send("✅ Group settings locked to admins only!");
+        
+      case 'unlock':
+        if (!await isBotAdmin(m)) return await m.send("✘ I need admin rights to do that!");
+        await m.client.groupSettingUpdate(m.chat, 'unlocked');
+        return await m.send("✅ Group settings unlocked for everyone!");
+        
+      case 'tagall':
+        const { participants } = await m.client.groupMetadata(m.chat);
+        let msg = `❴ ⇛ *CODEX SUMMONS ALL* ⇚ ❵\n*Message:* ${originalText}\n*Summoner:* ${permissions.isMaster ? "Master" : permissions.isPrincess ? "Princess" : permissions.isQueen ? "Queen" : permissions.isDiva ? "Diva" : "Commander"}\n\n`;
+        participants.forEach((p, i) => {
+          msg += `❧ ${i + 1}. @${p.jid.split('@')[0]}\n`;
+        });
+        return await m.send(msg, { mentions: participants.map(a => a.jid) });
+        
+      case 'kick':
+        if (!await isBotAdmin(m)) return await m.send("✘ I need admin rights to do that!");
+        const userToKick = m.mentionedJid[0] || m.quoted?.sender;
+        if (!userToKick) return await m.send("✘ Please reply to or mention someone to kick!");
+        await m.client.groupParticipantsUpdate(m.chat, [userToKick], "remove");
+        return await m.send(`✅ @${userToKick.split("@")[0]} has been removed!`, { mentions: [userToKick] });
+        
+      case 'promote':
+        if (!await isBotAdmin(m)) return await m.send("✘ I need admin rights to do that!");
+        const userToPromote = m.mentionedJid[0] || m.quoted?.sender;
+        if (!userToPromote) return await m.send("✘ Please reply to or mention someone to promote!");
+        await m.client.groupParticipantsUpdate(m.chat, [userToPromote], "promote");
+        return await m.send(`✅ @${userToPromote.split("@")[0]} is now an admin!`, { mentions: [userToPromote] });
+        
+      case 'demote':
+        if (!await isBotAdmin(m)) return await m.send("✘ I need admin rights to do that!");
+        const userToDemote = m.mentionedJid[0] || m.quoted?.sender;
+        if (!userToDemote) return await m.send("✘ Please reply to or mention someone to demote!");
+        await m.client.groupParticipantsUpdate(m.chat, [userToDemote], "demote");
+        return await m.send(`✅ @${userToDemote.split("@")[0]} has been demoted!`, { mentions: [userToDemote] });
+        
+      default:
+        return await m.send("🤔 I understand you want me to do something, but I'm not sure what exactly. Could you be more specific?");
+    }
+  } catch (error) {
+    console.log("Command execution error:", error);
+    return await m.send("❌ Something went wrong while executing that command!");
+  }
+};
+
+// Main Codex summoning handler
 kord({
   on: "text",
   fromMe: false,
   type: "codex_summon",
 }, async (m, text) => {
-  if (!m.isGroup || !text) return;
+  if (!text) return;
 
   const msg = text.toLowerCase().trim();
-  if (msg !== "codex") return;
+  if (!msg.includes("codex")) return;
 
-  const master = "2348058496605"; // your number without @s.whatsapp.net
-  const divaJid = "2349017102944@s.whatsapp.net"; // Replace with Diva's actual WhatsApp JID
-  const isMaster = m.sender.includes(master);
-  const normalizeJid = (jid) => jid.split(":")[0].replace(/[^0-9]/g, "");
-  const isDiva = normalizeJid(m.sender) === "2349017102944";
+  const permissions = checkPermissions(m.sender);
+  const chatId = m.chat;
 
   // Special response for Diva
-  if (isDiva) {
+  if (permissions.isDiva) {
     const divaFrames = [
       "💖 Heart Rate: ♡♡♡♡♡♡♡♡♡♡ 0 BPM",
       "💖 Heart Rate: ♥♡♡♡♡♡♡♡♡♡ 15 BPM",
@@ -2180,6 +2340,7 @@ kord({
 │  💫 Angel Mode: *Activating*
 │  👑 Royal Protocol: *Engaged*
 │  💌 Special Treatment: *Loading...*
+│  🧠 AI Mode: *Enabled*
 │  ${divaFrames[i]}
 │
 ╰─╼[ 𝑪𝒐𝒅𝒆𝒙 𝑰𝒔 𝑴𝒆𝒍𝒕𝒊𝒏𝒈... ]╾─╯
@@ -2192,13 +2353,14 @@ kord({
     }
 
     const divaFinal = `
-╭─╼[ *👑 𝑸𝑼𝑬𝑬𝑵 𝑫𝑬𝑻𝑬𝑪𝑻𝑬𝑫* ]╾─╮
+╭─╼[ *👑 𝑸𝑼𝑬𝑬𝑵 𝑫𝑬𝑻𝑬𝑪𝑻𝑬𝑫* ]╾─╯
 │
 │  𝘿𝙄𝙑𝘼 𝙎𝙐𝙈𝙈𝙊𝙉𝙀𝘿 ✨
 │  ━━━━━━━
 │  💫 Angel Mode: *Active*
 │  👑 Royal Protocol: *Enabled*
 │  💌 Special Treatment: *Deployed*
+│  🧠 AI Mode: *Ready*
 │  💖 Heart Rate: ♥♥♥♥♥♥♥♥♥♥ 100 BPM
 │
 ╰─╼[ 𝑪𝒐𝒅𝒆𝒙 𝑰𝒔 𝑺𝒊𝒎𝒑𝒊𝒏𝒈... ]╾─╯
@@ -2207,45 +2369,53 @@ kord({
 ❝ 💕 Anything for you, my Princess ❞
 ❝ 🌹 Your wish is my command, Diva ❞
 
-⚡ 𝙄 𝘼𝙢 𝘾𝙊𝘿𝙀𝙓 • 𝗦𝗜𝗠𝗣𝗜𝗡𝗚 𝗠𝗢𝗗𝗘 ⚡
-🎧 *Listening for your commands*
-`;
+⚡ 𝙄 𝘼𝙢 𝘾𝙊𝘿𝙀𝙓 • 𝗟𝗜𝗦𝗧𝗘𝗡𝗜𝗡𝗚 𝗠𝗢𝗗𝗘 ⚡
+*Listening for 60 seconds...*`;
 
     await m.client.sendMessage(m.chat, { edit: divaLoadingMsg.key, text: divaFinal });
     
     // Start listening session for Diva
-    activeListeners.set(m.chat, {
+    activeListeners.set(chatId, {
       userId: m.sender,
       startTime: Date.now(),
-      duration: 15000, // 15 seconds for Diva
-      isDiva: true
+      permissions,
+      specialUser: 'diva'
     });
 
-    // Auto-clear after duration
+    // Auto-stop listening after duration
     setTimeout(() => {
-      if (activeListeners.has(m.chat)) {
-        activeListeners.delete(m.chat);
+      if (activeListeners.has(chatId)) {
+        activeListeners.delete(chatId);
+        m.send("💫 Diva's listening session ended. Call me again anytime, Princess! 👑");
       }
-    }, 15000);
-    
+    }, CONFIG.listenDuration);
+
     return;
   }
 
-  // Check if user is master
-  if (!isMaster) {
-    const rejectionMessages = [
-      "🚫 Access Denied • You're not the boss of me",
-      "❌ Unauthorized • Only my Master can summon me",
-      "🔐 Permission Denied • Nice try, but I only serve one",
-      "⛔ Restricted Access • You lack the clearance level",
-      "🛡️ Security Breach Detected • Stand down, peasant"
-    ];
+  // Check if just summoning or if there's a command
+  const parsedCmd = parseCommand(text);
+  
+  if (parsedCmd.isCommand) {
+    // Command detected - check permissions
+    if (!permissions.hasPermissions) {
+      const sassyResponses = [
+        "🙄 Excuse me? You're not the boss of me!",
+        "😏 Nice try, but you don't have that kind of power here.",
+        "🤨 Who do you think you are? I only take orders from my masters!",
+        "😤 You wish you could boss me around! Not happening!",
+        "🙃 Aww, that's cute. But no, you can't command me.",
+        "😈 I don't answer to peasants. Know your place!",
+        "🤷‍♀️ Sorry, but you're not on my VIP list!"
+      ];
+      return await m.send(sassyResponses[Math.floor(Math.random() * sassyResponses.length)]);
+    }
     
-    const randomRejection = rejectionMessages[Math.floor(Math.random() * rejectionMessages.length)];
-    return await m.send(randomRejection);
+    // Execute the command immediately for authorized users
+    return await executeCommand(m, parsedCmd, permissions);
   }
 
-  // Original response for master
+  // Regular summoning - show initialization
   const frames = [
     "📶 Signal Strength: ░░░░░░░░░░ 0%",
     "📶 Signal Strength: █░░░░░░░░░ 12%",
@@ -2259,20 +2429,25 @@ kord({
   const loadingMsg = await m.send("🔄 Initializing Codex...");
 
   for (let i = 0; i < frames.length; i++) {
+    const userTitle = permissions.isMaster ? "*Master*" : 
+                     permissions.isPrincess ? "*Princess*" : 
+                     permissions.isQueen ? "*Queen*" : 
+                     m.sender.split("@")[0];
+
     const banner = `
 ╭─╼[ *💻 𝑺𝒚𝒔𝒕𝒆𝒎 𝑺𝒖𝒎𝒎𝒐𝒏𝒆𝒅* ]╾─╮
 │
 │  𝘾𝙊𝘿𝙀𝙓 𝘽𝙊𝙊𝙏𝙄𝙉𝙂 ✪
 │  ━━━━━━━
-│  🧠 Listening Mode: *Warming Up*
+│  🧠 AI Mode: *Initializing*
 │  👁️‍🗨️ Surveillance: *Online*
-│  ⚙️ System: *Initializing...*
+│  ⚙️ System: *Warming Up...*
 │  ${frames[i]}
 │
-╰─╼[ 𝑪𝒐𝒅𝒆𝒙 𝑰𝒔 𝑾𝒂𝒕𝒄𝒉𝒊𝒏𝒈... ]╾─╯
+╰─╼[ 𝑪𝒐𝒅𝒆𝒙 𝑰𝒔 𝑾𝒂𝒌𝒊𝒏𝒈... ]╾─╯
 
-❝ Summoner: *Master* ❞
-❝ Standby mode engaged... ❞`;
+❝ Summoner: ${userTitle} ❞
+❝ Activating listening protocols... ❞`;
 
     await m.client.sendMessage(m.chat, { edit: loadingMsg.key, text: banner });
     await new Promise((r) => setTimeout(r, 700));
@@ -2283,251 +2458,111 @@ kord({
 │
 │  𝘾𝙊𝘿𝙀𝙓 𝙊𝙉𝙇𝙄𝙉𝙀 ✪
 │  ━━━━━━━
-│  🧠 Listening Mode: *Active*
+│  🧠 AI Mode: *Active*
 │  👁️‍🗨️ Surveillance: *Enabled*
 │  ⚙️ System: *Stable | Running*
 │  📶 Signal Strength: ██████████ 100%
 │
-╰─╼[ 𝑪𝒐𝒅𝒆𝒙 𝑰𝒔 𝑾𝒂𝒕𝒄𝒉𝒊𝒏𝒈... ]╾─╯
+╰─╼[ 𝑪𝒐𝒅𝒆𝒙 𝑰𝒔 𝑳𝒊𝒔𝒕𝒆𝒏𝒊𝒏𝒈... ]╾─╯
 
-❝ You need no prefix to summon me... ❞
-❝ Just *say my name*... and I rise. ❞
+❝ I am awake and listening... ❞
+❝ Speak to me, and I shall respond... ❞
 
-⚡ 𝙄 𝘼𝙢 𝘾𝙊𝘿𝙀𝙓 • 𝗜 𝗔𝗠 𝗛𝗜𝗠 ⚡
-🎧 *Listening for your commands for 10 seconds...*
-`;
+⚡ 𝙄 𝘼𝙢 𝘾𝙊𝘿𝙀𝙓 • 𝗟𝗜𝗦𝗧𝗘𝗡𝗜𝗡𝗚 𝗠𝗢𝗗𝗘 ⚡
+*Listening for 60 seconds...*`;
 
   await m.client.sendMessage(m.chat, { edit: loadingMsg.key, text: final });
 
-  // Start listening session for master
-  activeListeners.set(m.chat, {
+  // Start listening session
+  activeListeners.set(chatId, {
     userId: m.sender,
     startTime: Date.now(),
-    duration: 10000, // 10 seconds for master
-    isDiva: false
+    permissions
   });
 
-  // Auto-clear after duration
+  // Auto-stop listening after duration
   setTimeout(() => {
-    if (activeListeners.has(m.chat)) {
-      activeListeners.delete(m.chat);
+    if (activeListeners.has(chatId)) {
+      activeListeners.delete(chatId);
+      m.send("⏰ Listening session ended. Summon me again anytime!");
     }
-  }, 10000);
+  }, CONFIG.listenDuration);
 });
 
-// Natural Language Command Processor
+// Listening mode handler
 kord({
   on: "text",
   fromMe: false,
-  type: "codex_nlp",
+  type: "codex_listener",
 }, async (m, text) => {
-  if (!m.isGroup || !text) return;
+  if (!text) return;
   
-  const listener = activeListeners.get(m.chat);
-  if (!listener || m.sender !== listener.userId) return;
+  const chatId = m.chat;
+  const listener = activeListeners.get(chatId);
   
-  // Check if listening session is still active
-  const elapsed = Date.now() - listener.startTime;
-  if (elapsed > listener.duration) {
-    activeListeners.delete(m.chat);
+  if (!listener) return; // No active listening session
+  
+  // Check if session has expired
+  if (Date.now() - listener.startTime > CONFIG.listenDuration) {
+    activeListeners.delete(chatId);
     return;
   }
 
-  const message = text.toLowerCase().trim();
+  const lowerText = text.toLowerCase();
   
-  // Check if message contains "codex" to indicate it's a command
-  if (!message.includes("codex")) return;
-
-  // Clear the listener since we're processing a command
-  activeListeners.delete(m.chat);
-
-  // Command processing functions
-  const processCommand = async (commandType, params = {}) => {
-    const master = "2348058496605";
-    const normalizeJid = (jid) => jid.split(":")[0].replace(/[^0-9]/g, "");
-    const isDiva = normalizeJid(m.sender) === "2349017102944";
-    const isMaster = m.sender.includes(master);
-
-    // Authorization check
-    if (!isMaster && !isDiva) {
-      const sassyReplies = [
-        "🙄 Excuse me? I don't take orders from wannabes",
-        "💅 Sorry hun, you're not on my VIP list",
-        "🚫 Command rejected • Check your privilege level",
-        "😏 That's cute, but I only serve royalty",
-        "🔐 Access denied • You're not HIM, rest"
-      ];
-      return await m.send(sassyReplies[Math.floor(Math.random() * sassyReplies.length)]);
-    }
-
-    try {
-      const botAd = await isBotAdmin(m);
-      
-      switch (commandType) {
-        case "mute":
-          if (!botAd) return await m.send("❌ I need admin powers to mute this chaos");
-          await m.client.groupSettingUpdate(m.chat, "announcement");
-          return await m.send("🔇 Group silenced • Only admins can speak now");
-
-        case "unmute":
-          if (!botAd) return await m.send("❌ I need admin powers to unmute");  
-          await m.client.groupSettingUpdate(m.chat, "not_announcement");
-          return await m.send("🔊 Group unmuted • Everyone can speak freely");
-
-        case "lock":
-          if (!botAd) return await m.send("❌ I need admin powers to lock settings");
-          const meta1 = await m.client.groupMetadata(m.chat);
-          if (meta1.restrict) return await m.send("🔒 Group settings are already locked");
-          await m.client.groupSettingUpdate(m.chat, 'locked');
-          return await m.send("🔒 Group settings locked • Admin-only zone");
-
-        case "unlock":
-          if (!botAd) return await m.send("❌ I need admin powers to unlock settings");
-          const meta2 = await m.client.groupMetadata(m.chat);
-          if (!meta2.restrict) return await m.send("🔓 Group settings are already unlocked");
-          await m.client.groupSettingUpdate(m.chat, 'unlocked');
-          return await m.send("🔓 Group settings unlocked • Democracy restored");
-
-        case "tagall":
-          if (!botAd) return await m.send("❌ I need admin powers to tag everyone");
-          const { participants } = await m.client.groupMetadata(m.chat);
-          let msg = `❴ ⇛ *CODEX MASS SUMMON* ⇚ ❵\n*Caller:* ${isDiva ? "👑 My Queen Diva" : "⚡ Master"}\n*Message:* ${params.reason || "Assembly required"}\n\n`;
-          participants.forEach((p, i) => {
-            msg += `❧ ${i + 1}. @${p.jid.split('@')[0]}\n`; 
-          });
-          return await m.send(msg, { mentions: participants.map(a => a.jid) });
-
-        case "kick":
-          if (!botAd) return await m.send("❌ I need admin powers to remove members");
-          if (!params.target) return await m.send("❓ Who should I remove? Reply to their message or mention them");
-          
-          let targetJid = params.target;
-          let jid = parsedJid(targetJid);
-          
-          if (!await isadminn(m, targetJid)) {
-            await m.client.groupParticipantsUpdate(m.chat, [jid], "remove");
-            return await m.send(`👋 @${jid[0].split("@")[0]} has been removed`, { mentions: [jid] });
-          } else {
-            return await m.send("❌ Cannot remove admin members");
-          }
-
-        case "promote":
-          if (!botAd) return await m.send("❌ I need admin powers to promote members");
-          if (!params.target) return await m.send("❓ Who should I promote? Reply to their message or mention them");
-          
-          let promoteJid = parsedJid(params.target);
-          if (await isadminn(m, params.target)) return await m.send("❌ User is already an admin");
-          
-          await m.client.groupParticipantsUpdate(m.chat, [promoteJid], "promote");
-          return await m.send(`👑 @${promoteJid[0].split("@")[0]} promoted to admin`, { mentions: [promoteJid] });
-
-        case "demote":
-          if (!botAd) return await m.send("❌ I need admin powers to demote members");
-          if (!params.target) return await m.send("❓ Who should I demote? Reply to their message or mention them");
-          
-          if (!await isadminn(m, params.target)) return await m.send("❌ User is not an admin");
-          
-          let demoteJid = parsedJid(params.target);
-          await m.client.groupParticipantsUpdate(m.chat, [demoteJid], "demote");
-          return await m.send(`📉 @${demoteJid[0].split("@")[0]} demoted to member`, { mentions: [demoteJid] });
-
-        default:
-          return await m.send("❓ Command not recognized • Try being more specific");
+  // If message mentions codex, process it
+  if (lowerText.includes("codex")) {
+    const parsedCmd = parseCommand(text);
+    const permissions = checkPermissions(m.sender);
+    
+    if (parsedCmd.isCommand) {
+      // Command detected
+      if (!permissions.hasPermissions) {
+        const sassyResponses = [
+          "🙄 Nice try, but you're not authorized for that!",
+          "😏 I only take commands from my authorized users!",
+          "🤨 You don't have permission to boss me around!",
+          "😤 Command rejected! You're not on my access list!",
+          "🙃 Cute attempt, but access denied!",
+          "😈 I don't serve unauthorized users!",
+          "🤷‍♀️ Sorry, you're not in my VIP circle!"
+        ];
+        return await m.send(sassyResponses[Math.floor(Math.random() * sassyResponses.length)]);
       }
-    } catch (e) {
-      console.log("Codex command error:", e);
-      return await m.send("⚠️ Something went wrong executing that command");
+      
+      // Execute command for authorized users
+      await executeCommand(m, parsedCmd, permissions);
+      
+      // End listening session after command execution
+      activeListeners.delete(chatId);
+      return await m.send("✅ Command executed. Listening session ended.");
     }
-  };
+  }
 
-  // Natural Language Processing
-  const parseCommand = (text) => {
-    const msg = text.toLowerCase();
-    
-    // Mute patterns
-    if (/(mute|silence|quiet|shut\s*up|stop.*talk)/i.test(msg)) {
-      return { command: "mute" };
-    }
-    
-    // Unmute patterns  
-    if (/(unmute|unsilence|let.*talk|allow.*speak|open.*chat)/i.test(msg)) {
-      return { command: "unmute" };
-    }
-    
-    // Lock patterns
-    if (/(lock|restrict|admin.*only|lock.*setting)/i.test(msg)) {
-      return { command: "lock" };
-    }
-    
-    // Unlock patterns
-    if (/(unlock|unrestrict|everyone.*edit|unlock.*setting)/i.test(msg)) {
-      return { command: "unlock" };
-    }
-    
-    // Tag all patterns
-    if (/(tag.*all|everyone|summon.*all|mass.*tag|call.*everyone)/i.test(msg)) {
-      const reasonMatch = msg.match(/(?:because|for|about|regarding)\s+(.+)/i);
-      return { 
-        command: "tagall", 
-        params: { reason: reasonMatch ? reasonMatch[1] : null }
-      };
-    }
-    
-    // Kick patterns with target detection
-    if (/(kick|remove|boot|ban|throw.*out)/i.test(msg)) {
-      let target = m.quoted?.sender || m.mentionedJid?.[0];
-      return { 
-        command: "kick", 
-        params: { target }
-      };
-    }
-    
-    // Promote patterns
-    if (/(promote|make.*admin|give.*admin|admin.*power)/i.test(msg)) {
-      let target = m.quoted?.sender || m.mentionedJid?.[0];
-      return { 
-        command: "promote", 
-        params: { target }
-      };
-    }
-    
-    // Demote patterns
-    if (/(demote|remove.*admin|take.*admin|strip.*power)/i.test(msg)) {
-      let target = m.quoted?.sender || m.mentionedJid?.[0];
-      return { 
-        command: "demote", 
-        params: { target }
-      };
-    }
-    
-    return null;
-  };
-
-  // Process the natural language command
-  const parsedCommand = parseCommand(message);
-  
-  if (parsedCommand) {
-    await processCommand(parsedCommand.command, parsedCommand.params || {});
-  } else {
-    // If no command recognized, give a helpful response
-    const helpMessage = `
-🤖 *Command not recognized*
-
-Try saying things like:
-• "Codex mute the group"
-• "Codex tag everyone"  
-• "Codex kick this person" (reply to someone)
-• "Codex lock the settings"
-• "Codex promote this user" (reply to someone)
-
-I understand natural language, so be creative! 🎯`;
-    
-    await m.send(helpMessage);
+  // For any other message while listening, provide AI response
+  try {
+    const aiResponse = await getAIResponse(text);
+    await m.send(`🤖 **Codex AI**: ${aiResponse}`);
+  } catch (error) {
+    console.log("AI response error:", error);
+    await m.send("🤔 I heard you, but I'm processing that information. Anything else?");
   }
 });
- 
 
-
+// Status check command for debugging
+kord({
+  cmd: "codex-status",
+  desc: "Check Codex listening sessions",
+  fromMe: true,
+  type: "group",
+}, async (m, text) => {
+  const activeSessions = Array.from(activeListeners.entries()).map(([chatId, session]) => {
+    const timeLeft = Math.max(0, CONFIG.listenDuration - (Date.now() - session.startTime));
+    return `Chat: ${chatId}\nUser: ${session.userId}\nTime Left: ${Math.ceil(timeLeft/1000)}s`;
+  }).join('\n\n');
+  
+  await m.send(activeSessions || "No active listening sessions");
+});
 
 
 
