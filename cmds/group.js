@@ -2567,37 +2567,32 @@ kord({
 
 
 
-
-
-
-
 kord({
-  pattern: "spamtg ?(.*)",
-  desc: "Spam message while tagging everyone invisibly",
-  category: "group",
-  use: "<count> <message>",
-  fromMe: true,
-  type: "group"
-}, async (msg, match) => {
-  const { metadata } = await getMeta(msg)
-  const participants = metadata.participants.map(p => p.id).filter(jid => jid !== msg.user)
+  cmd: "spamtag",
+  desc: "Spam mentions silently (tags everyone without showing usernames)",
+  fromMe: false,
+  type: "group",
+  cooldown: 5,
+  handler: async (msg, args, { participants }) => {
+    const parts = args.trim().split(" ")
+    const count = parseInt(parts[0]) || 1
+    const message = parts.slice(1).join(" ") || "Hey everyone!"
 
-  const args = match.trim().split(" ")
-  const count = parseInt(args.shift())
+    if (!participants || participants.length === 0) {
+      return msg.reply("❌ Couldn't get group participants.")
+    }
 
-  if (isNaN(count) || count <= 0 || count > 10) {
-    return await msg.reply("❌ *Invalid count*\n\nUse a number between 1 and 10.\nExample: `.spamtg 5 Wake up`")
-  }
+    const mentions = participants.map(p => p.id)
 
-  const spamMessage = args.join(" ")
-  if (!spamMessage) return await msg.reply("❌ *Please enter a message to spam.*")
-
-  for (let i = 0; i < count; i++) {
-    await msg.send(spamMessage, { mentions: participants })
-    await new Promise(resolve => setTimeout(resolve, 1000)) // delay 1 sec between messages
+    for (let i = 0; i < count; i++) {
+      await msg.send(message, { mentions })
+    }
   }
 })
 
+
+
+ 
 
 kord({
   cmd: "shadowban",
