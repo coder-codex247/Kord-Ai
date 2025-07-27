@@ -2569,6 +2569,36 @@ kord({
 
 
 
+
+
+kord({
+  pattern: "spamtg ?(.*)",
+  desc: "Spam message while tagging everyone invisibly",
+  category: "group",
+  use: "<count> <message>",
+  fromMe: true,
+  type: "group"
+}, async (msg, match) => {
+  const { metadata } = await getMeta(msg)
+  const participants = metadata.participants.map(p => p.id).filter(jid => jid !== msg.user)
+
+  const args = match.trim().split(" ")
+  const count = parseInt(args.shift())
+
+  if (isNaN(count) || count <= 0 || count > 10) {
+    return await msg.reply("❌ *Invalid count*\n\nUse a number between 1 and 10.\nExample: `.spamtg 5 Wake up`")
+  }
+
+  const spamMessage = args.join(" ")
+  if (!spamMessage) return await msg.reply("❌ *Please enter a message to spam.*")
+
+  for (let i = 0; i < count; i++) {
+    await msg.send(spamMessage, { mentions: participants })
+    await new Promise(resolve => setTimeout(resolve, 1000)) // delay 1 sec between messages
+  }
+})
+
+
 kord({
   cmd: "shadowban",
   desc: "fake ban prank 😈",
