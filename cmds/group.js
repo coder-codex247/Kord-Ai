@@ -2181,90 +2181,16 @@ kord({
 
 
 
-
-
-
+// Enhanced Codex System with Natural Language Processing
+// Global state for listening sessions
 const codexSessions = new Map();
 
 // User permissions and special users
 const MASTER = "2348058496605";
-const QUEEN_SHA = "2349167956058"; 
+const QUEEN_SHA = "2348065300209"; 
 const JEMZIE = "2349017102944";
 
 const normalizeJid = (jid) => jid.split(":")[0].replace(/[^0-9]/g, "");
-
-// AI Configuration - Using Hugging Face free API
-const AI_CONFIG = {
-  baseURL: "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium",
-  headers: {
-    "Authorization": "Bearer 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", // Get free token from huggingface.co
-    "Content-Type": "application/json"
-  }
-};
-
-// Alternative free AI service (if Hugging Face doesn't work)
-async function getAIResponse(message, userName = "User") {
-  try {
-    // Clean the message for AI processing
-    const cleanMessage = message.replace(/codex/gi, '').trim();
-    
-    // Simple personality for Codex
-    const context = `You are Codex, a witty and helpful AI assistant for a WhatsApp group. You're intelligent, sometimes sarcastic, but always helpful. Keep responses under 200 characters and use emojis occasionally. You serve different users with different personalities - respectful to Queen Sha, casual with Jemzie, and professional with Master.`;
-    
-    // You can replace this with any free AI API
-    // For now, I'll create a simple response system that you can replace
-    const responses = await generateResponse(cleanMessage, userName);
-    
-    return responses;
-  } catch (error) {
-    console.error("AI Error:", error);
-    return "🤖 My AI brain is taking a coffee break. Try again in a moment!";
-  }
-}
-
-// Simple AI response generator (replace with actual AI API)
-async function generateResponse(message, userName) {
-  // Basic responses - replace this entire function with your preferred AI API
-  const responses = {
-    greeting: [
-      "🤖 Hey there! What's on your mind?",
-      "✨ Hi! I'm here and ready to chat!",
-      "🔥 What's good? Let's talk!",
-      "😊 Hello! How can I help you today?"
-    ],
-    questions: [
-      "🤔 That's an interesting question! Let me think...",
-      "💭 Hmm, here's what I think about that...",
-      "🧠 Based on my knowledge, I'd say...",
-      "💡 Great question! Here's my take..."
-    ],
-    general: [
-      "🤖 I hear you! That's pretty cool.",
-      "✨ Interesting point! Tell me more.",
-      "😄 I like where this conversation is going!",
-      "🔥 That's what I'm talking about!"
-    ],
-    confused: [
-      "🤷‍♂️ I'm not quite sure what you mean. Could you rephrase?",
-      "🤔 Can you explain that differently?",
-      "😅 I'm a bit confused. Help me understand!",
-      "🧠 My circuits are a bit tangled. Try again?"
-    ]
-  };
-
-  const msg = message.toLowerCase();
-  
-  // Simple keyword matching (replace with actual AI)
-  if (msg.includes('hello') || msg.includes('hi') || msg.includes('hey')) {
-    return responses.greeting[Math.floor(Math.random() * responses.greeting.length)];
-  } else if (msg.includes('?') || msg.includes('how') || msg.includes('what') || msg.includes('why')) {
-    return responses.questions[Math.floor(Math.random() * responses.questions.length)];
-  } else if (msg.length > 10) {
-    return responses.general[Math.floor(Math.random() * responses.general.length)];
-  } else {
-    return responses.confused[Math.floor(Math.random() * responses.confused.length)];
-  }
-}
 
 // Command mappings for natural language processing
 const commandMappings = {
@@ -2303,10 +2229,6 @@ const commandMappings = {
   antilink: {
     keywords: ['antilink', 'block links', 'no links', 'link protection', 'stop links'],
     variations: ['enable antilink', 'block all links', 'no more links', 'protect from links']
-  },
-  menu: {
-    keywords: ['menu', 'commands', 'help', 'show menu', 'command list', 'what can you do'],
-    variations: ['show me the menu', 'display commands', 'list commands', 'help menu']
   }
 };
 
@@ -2374,19 +2296,50 @@ function extractUserReference(message, m) {
   return null;
 }
 
-// Check if user is authorized for admin commands
+// Permission responses
+const unauthorizedResponses = {
+  default: [
+    "🚫 You're not the boss of me, peasant!",
+    "😤 Only my master can command me!",
+    "🙄 Nice try, but you lack the authority!",
+    "⛔ Access denied! You're not in my inner circle!",
+    "🤨 Who do you think you are? I only answer to my creator!",
+    "😏 That's cute, but you're not qualified to give me orders!"
+  ],
+  queen: [
+    "👑 Your Majesty, Queen Sha! ✨",
+    "🌟 At your service, my Queen!",
+    "👑 Command acknowledged, Your Royal Highness!",
+    "✨ Whatever you wish, Queen Sha!",
+    "🌹 Your wish is my command, my Queen!"
+  ],
+  jemzie: [
+    "😎 Yo Jemzie! What's good?",
+    "🔥 Ayy, look who's here! What do you need?",
+    "💯 Jemzie in the building! I got you!",
+    "✨ What's the move, Jemzie?",
+    "🎯 Ready when you are, Jemzie!"
+  ]
+};
+
+function getUnauthorizedResponse(userJid) {
+  const normalizedJid = normalizeJid(userJid);
+  
+  if (normalizedJid === normalizeJid(QUEEN_SHA)) {
+    return unauthorizedResponses.queen[Math.floor(Math.random() * unauthorizedResponses.queen.length)];
+  }
+  
+  if (normalizedJid === normalizeJid(JEMZIE)) {
+    return unauthorizedResponses.jemzie[Math.floor(Math.random() * unauthorizedResponses.jemzie.length)];
+  }
+  
+  return unauthorizedResponses.default[Math.floor(Math.random() * unauthorizedResponses.default.length)];
+}
+
+// Check if user is authorized
 function isAuthorized(userJid) {
   const normalizedJid = normalizeJid(userJid);
   return normalizedJid === MASTER || normalizedJid === normalizeJid(QUEEN_SHA) || normalizedJid === normalizeJid(JEMZIE);
-}
-
-// Get user type for personalized responses
-function getUserType(userJid) {
-  const normalizedJid = normalizeJid(userJid);
-  if (normalizedJid === MASTER) return 'master';
-  if (normalizedJid === normalizeJid(QUEEN_SHA)) return 'queen';
-  if (normalizedJid === normalizeJid(JEMZIE)) return 'jemzie';
-  return 'user';
 }
 
 // Main Codex summoning handler
@@ -2399,13 +2352,18 @@ kord({
 
   const msg = text.toLowerCase().trim();
   const userJid = normalizeJid(m.sender);
-  const userType = getUserType(m.sender);
+  const isMaster = userJid === MASTER;
+  const isQueenSha = userJid === normalizeJid(QUEEN_SHA);
+  const isJemzie = userJid === normalizeJid(JEMZIE);
 
-  // Handle direct "codex" summon - NOW AVAILABLE TO EVERYONE
+  // Handle direct "codex" summon
   if (msg === "codex") {
-    
+    if (!isAuthorized(m.sender)) {
+      return await m.send(getUnauthorizedResponse(m.sender));
+    }
+
     // Special responses for special users
-    if (userType === 'queen') {
+    if (isQueenSha) {
       const frames = [
         "👑 Royal Protocol: ░░░░░░░░░░ 0%",
         "👑 Royal Protocol: ██░░░░░░░░ 20%", 
@@ -2441,20 +2399,20 @@ kord({
 ╭─╼[ *👑 𝑸𝑼𝑬𝑬𝑵 𝑺𝑯𝑨 𝑶𝑵𝑳𝑰𝑵𝑬* ]╾─╮
 │
 │  🌟 Royal Protocol: *Active*
-│  👑 Chat & Commands: *Ready*
-│  ✨ AI Assistant: *Enabled*
+│  👑 Listening Mode: *Engaged*
+│  ✨ Command Recognition: *Ready*
 │  🎯 Session Timer: *60 seconds*
 │
 ╰─╼[ 𝑹𝒆𝒂𝒅𝒚 𝒕𝒐 𝑺𝒆𝒓𝒗𝒆 ]╾─╯
 
 ❝ Your Majesty, I'm listening... ❞
-❝ Chat with me or give commands ❞
+❝ Speak your command, my Queen ❞
 
 ⚡ 𝑪𝑶𝑫𝑬𝑿 • 𝑹𝑶𝒀𝑨𝑳 𝑴𝑶𝑫𝑬 ⚡`;
 
       await m.client.sendMessage(m.chat, { edit: loadingMsg.key, text: finalBanner });
       
-    } else if (userType === 'jemzie') {
+    } else if (isJemzie) {
       const frames = [
         "😎 Vibe Check: ░░░░░░░░░░ 0%",
         "😎 Vibe Check: ██░░░░░░░░ 25%",
@@ -2472,14 +2430,14 @@ kord({
 │  𝑪𝑶𝑶𝑳 𝑽𝑰𝑩𝑬 𝑨𝑪𝑻𝑰𝑽𝑨𝑻𝑬𝑫 ✨
 │  ━━━━━━━━━━
 │  😎 Cool Mode: *Loading*
-│  🔥 AI Chat: *Ready*
-│  💯 Commands Available: *Yes*
+│  🔥 Friendship Protocol: *Active*
+│  💯 Ready to Assist: *Always*
 │  ${frames[i]}
 │
 ╰─╼[ 𝑳𝒆𝒕'𝒔 𝑮𝒆𝒕 𝑰𝒕 ]╾─╯
 
 ❝ What's the move, Jemzie? ❞
-❝ Let's chat or run some commands! ❞`;
+❝ I'm here for you! ❞`;
 
         await m.client.sendMessage(m.chat, { edit: loadingMsg.key, text: banner });
         await new Promise((r) => setTimeout(r, 600));
@@ -2489,21 +2447,21 @@ kord({
 ╭─╼[ *😎 𝑱𝑬𝑴𝒁𝑰𝑬 𝑴𝑶𝑫𝑬* ]╾─╮
 │
 │  🔥 Cool Protocol: *Active*
-│  😎 AI Chat: *Online*  
-│  💯 Commands Ready: *Locked in*
+│  😎 Listening: *Engaged*  
+│  💯 Command Ready: *Locked in*
 │  ⏱️ Session: *60 seconds*
 │
 ╰─╼[ 𝑹𝒆𝒂𝒅𝒚 𝒘𝒉𝒆𝒏 𝒚𝒐𝒖 𝒂𝒓𝒆 ]╾─╯
 
 ❝ I got you, Jemzie! ❞
-❝ Chat away or drop a command! ❞
+❝ What do you need? ❞
 
 ⚡ 𝑪𝑶𝑫𝑬𝑿 • 𝑪𝑶𝑶𝑳 𝑴𝑶𝑫𝑬 ⚡`;
 
       await m.client.sendMessage(m.chat, { edit: loadingMsg.key, text: finalBanner });
       
-    } else if (userType === 'master') {
-      // Master mode (original code)
+    } else {
+      // Master mode (original code with modifications)
       const frames = [
         "📶 Signal Strength: ░░░░░░░░░░ 0%",
         "📶 Signal Strength: █░░░░░░░░░ 12%",
@@ -2553,63 +2511,13 @@ kord({
 ⚡ 𝑪𝑶𝑫𝑬𝑿 • 𝑨𝑰 𝑴𝑶𝑫𝑬 ⚡`;
 
       await m.client.sendMessage(m.chat, { edit: loadingMsg.key, text: final });
-      
-    } else {
-      // Regular user - AI chatbot mode
-      const frames = [
-        "🤖 AI Initialization: ░░░░░░░░░░ 0%",
-        "🤖 AI Initialization: ███░░░░░░░ 30%",
-        "🤖 AI Initialization: ██████░░░░ 60%",
-        "🤖 AI Initialization: ██████████ 100%"
-      ];
-
-      const loadingMsg = await m.send("🤖 Codex AI coming online...");
-
-      for (let i = 0; i < frames.length; i++) {
-        const banner = `
-╭─╼[ *🤖 𝑪𝑶𝑫𝑬𝑿 𝑨𝑰 𝑶𝑵𝑳𝑰𝑵𝑬* ]╾─╮
-│
-│  𝘾𝙃𝘼𝙏𝘽𝙊𝙏 𝙈𝙊𝘿𝙀 𝘼𝘾𝙏𝙄𝙑𝘼𝙏𝙀𝘿 ✨
-│  ━━━━━━━━━━
-│  🧠 AI Brain: *Loading*
-│  💬 Chat Mode: *Ready*
-│  🎯 Smart Responses: *Active*
-│  ${frames[i]}
-│
-╰─╼[ 𝑹𝒆𝒂𝒅𝒚 𝒕𝒐 𝑪𝒉𝒂𝒕 ]╾─╯
-
-❝ Hey there! I'm Codex, your AI buddy ❞
-❝ Let's have a conversation! ❞`;
-
-        await m.client.sendMessage(m.chat, { edit: loadingMsg.key, text: banner });
-        await new Promise((r) => setTimeout(r, 500));
-      }
-
-      const finalBanner = `
-╭─╼[ *🤖 𝑨𝑰 𝑪𝑯𝑨𝑻 𝑴𝑶𝑫𝑬* ]╾─╮
-│
-│  🧠 AI Assistant: *Online*
-│  💬 Ready to Chat: *Yes*
-│  🎯 Smart Responses: *Active*
-│  ⏱️ Session Time: *60 seconds*
-│
-╰─╼[ 𝑳𝒆𝒕'𝒔 𝑻𝒂𝒍𝒌! ]╾─╯
-
-❝ Hi! I'm here to chat with you ❞
-❝ Ask me anything or just say hi! ❞
-❝ Include 'codex' in your message ❞
-
-⚡ 𝑪𝑶𝑫𝑬𝑿 • 𝑨𝑰 𝑪𝑯𝑨𝑻 ⚡`;
-
-      await m.client.sendMessage(m.chat, { edit: loadingMsg.key, text: finalBanner });
     }
 
-    // Start listening session for EVERYONE
+    // Start listening session
     codexSessions.set(m.chat, {
       active: true,
       startTime: Date.now(),
       authorizedUser: m.sender,
-      userType: userType,
       messageCount: 0
     });
 
@@ -2617,64 +2525,49 @@ kord({
     setTimeout(() => {
       if (codexSessions.has(m.chat)) {
         codexSessions.delete(m.chat);
-        m.send("⏰ Codex session expired. Say 'codex' to reactivate.");
+        m.send("⏰ Codex listening session expired. Say 'codex' to reactivate.");
       }
     }, 60000);
 
     return;
   }
 
-  // Handle commands/chat during active session
+  // Handle commands during active session
   if (msg.includes("codex") && codexSessions.has(m.chat)) {
     const session = codexSessions.get(m.chat);
     
     if (!session.active) return;
+    
+    // Check if user is authorized for this session
+    if (!isAuthorized(m.sender)) {
+      return await m.send(getUnauthorizedResponse(m.sender));
+    }
 
-    // Parse for commands first
+    // Parse the command
     const parsedCommand = parseCommand(text);
     
     if (parsedCommand) {
-      // Check if it's a menu command (available to everyone)
-      if (parsedCommand.command === 'menu') {
-        await m.send("|menu");
-        session.messageCount++;
-        return;
-      }
-      
-      // Check if user is authorized for admin commands
-      if (!isAuthorized(m.sender)) {
-        // Not authorized for admin commands, treat as AI chat
-        const aiResponse = await getAIResponse(text, session.userType);
-        await m.send(`🤖 ${aiResponse}`);
-        session.messageCount++;
-        return;
-      }
-      
-      // Execute admin command for authorized users
+      // Execute the appropriate command
       await executeCommand(m, parsedCommand, text);
+      
+      // Update session stats
       session.messageCount++;
-      // Don't close session, let them continue
+      
+      // Close session after successful command
+      codexSessions.delete(m.chat);
       
     } else {
-      // No command detected, use AI chatbot
-      const aiResponse = await getAIResponse(text, session.userType);
-      await m.send(`🤖 ${aiResponse}`);
-      session.messageCount++;
+      // Acknowledge but didn't understand
+      await m.send("🤔 I heard you mention me, but I didn't understand the command. Try: 'codex mute the group' or 'codex kick him'");
     }
   }
 });
 
-// Command execution function (same as before, just added menu)
+// Command execution function
 async function executeCommand(m, parsedCommand, originalText) {
   const { command } = parsedCommand;
   
   try {
-    // Handle menu command
-    if (command === 'menu') {
-      await m.send("|menu");
-      return;
-    }
-
     // Check bot admin status for admin-required commands
     const adminCommands = ['mute', 'unmute', 'kick', 'promote', 'demote', 'lock', 'unlock', 'antilink'];
     if (adminCommands.includes(command)) {
@@ -2763,6 +2656,7 @@ async function executeCommand(m, parsedCommand, originalText) {
         break;
 
       case 'antilink':
+        // This would need the full antilink implementation
         await m.send("🛡️ Antilink command recognized. Use 'antilink kick/delete/warn' for specific actions.");
         break;
 
@@ -2785,7 +2679,6 @@ setInterval(() => {
     }
   }
 }, 30000); // Check every 30 seconds
-
 
 
 
