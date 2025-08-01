@@ -2137,57 +2137,13 @@ kord({
 
 
 
-/
-
-
-
-
-
-
-
-
-
-
-
-kord({
-  cmd: "spamtag",
-  desc: "Spam mentions silently (tags everyone without showing usernames)",
-  fromMe: false,
-  type: "group",
-  cooldown: 5,
-  handler: async (msg, args, { participants }) => {
-    const parts = args.trim().split(" ")
-    const count = parseInt(parts[0]) || 1
-    const message = parts.slice(1).join(" ") || "Hey everyone!"
-
-    if (!participants || participants.length === 0) {
-      return msg.reply("❌ Couldn't get group participants.")
-    }
-
-    const mentions = participants.map(p => p.id)
-
-    for (let i = 0; i < count; i++) {
-      await msg.send(message, { mentions })
-    }
-  }
-})
-
-
-
-
-
-
-
-
-
-
 // Enhanced Codex System with Natural Language Processing
 // Global state for listening sessions
 const codexSessions = new Map();
 
 // User permissions and special users
 const MASTER = "2348058496605";
-const QUEEN_SHA = "2348065300209"; 
+const QUEEN_SHA = "2349167956058"; 
 const JEMZIE = "2349017102944";
 
 const normalizeJid = (jid) => jid.split(":")[0].replace(/[^0-9]/g, "");
@@ -2684,6 +2640,39 @@ setInterval(() => {
 
 
 
+
+
+
+
+
+
+
+
+kord({
+  cmd: "spamtag",
+  desc: "Spam mentions silently (tags everyone without showing usernames)",
+  fromMe: false,
+  type: "group",
+  cooldown: 5,
+  handler: async (msg, args, { participants }) => {
+    const parts = args.trim().split(" ")
+    const count = parseInt(parts[0]) || 1
+    const message = parts.slice(1).join(" ") || "Hey everyone!"
+
+    if (!participants || participants.length === 0) {
+      return msg.reply("❌ Couldn't get group participants.")
+    }
+
+    const mentions = participants.map(p => p.id)
+
+    for (let i = 0; i < count; i++) {
+      await msg.send(message, { mentions })
+    }
+  }
+})
+
+
+
  
 
 kord({
@@ -2802,4 +2791,3 @@ kord({
     mentions: [user]
   });
 });
-
