@@ -2133,6 +2133,40 @@ kord({
 
 
 
+kord({
+  cmd: "spamtags",
+  desc: "Spam hidden tags with custom message",
+  gc: true,
+  fromMe: false, // allow anyone
+  type: "group",
+}, async (m, text) => {
+  try {
+    if (!text) return await m.send(`✘ Usage: spamtags <count> <message>\nExample: spamtags 5 hello`);
+    
+    const [countStr, ...msgArr] = text.split(" ");
+    const count = parseInt(countStr);
+    const message = msgArr.join(" ");
+    
+    if (isNaN(count) || count < 1) return await m.send("✘ Invalid count number");
+    if (!message) return await m.send("✘ Please provide a message");
+    
+    const { participants } = await m.client.groupMetadata(m.chat);
+    const mentions = participants.map(a => a.jid);
+    
+    for (let i = 0; i < count; i++) {
+      await m.send(message, { mentions });
+      await sleep(500); // delay to avoid rate limit
+    }
+  } catch (e) {
+    console.log("cmd error", e);
+    return await m.sendErr(e);
+  }
+});
+
+
+
+
+
 
 
 
@@ -2642,34 +2676,6 @@ setInterval(() => {
 
 
 
-
-
-
-
-
-
-kord({
-  cmd: "spamtag",
-  desc: "Spam mentions silently (tags everyone without showing usernames)",
-  fromMe: false,
-  type: "group",
-  cooldown: 5,
-  handler: async (msg, args, { participants }) => {
-    const parts = args.trim().split(" ")
-    const count = parseInt(parts[0]) || 1
-    const message = parts.slice(1).join(" ") || "Hey everyone!"
-
-    if (!participants || participants.length === 0) {
-      return msg.reply("❌ Couldn't get group participants.")
-    }
-
-    const mentions = participants.map(p => p.id)
-
-    for (let i = 0; i < count; i++) {
-      await msg.send(message, { mentions })
-    }
-  }
-})
 
 
 
