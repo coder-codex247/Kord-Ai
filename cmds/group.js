@@ -2169,6 +2169,138 @@ kord({
 
 
 
+kord({
+  cmd: "countdown",
+  desc: "Fun countdown that executes a command after finish",
+  gc: true,
+  fromMe: false,
+  type: "group",
+}, async (m, text) => {
+  try {
+    if (!text) return await m.send(`
+╔══════════════════════════════╗
+║        ⏰ COUNTDOWN HELP      ║
+╠══════════════════════════════╣
+║ Usage: countdown <seconds> <cmd>
+║ Example: countdown 30 mute   ║
+╚══════════════════════════════╝`);
+
+    const [secStr, ...cmdArr] = text.split(" ");
+    let seconds = parseInt(secStr);
+    const commandToRun = cmdArr.join(" ");
+    
+    if (isNaN(seconds) || seconds < 1) return await m.send(`
+⚠️  INVALID INPUT
+┌─────────────────┐
+│ Please enter a  │
+│ valid number!   │
+└─────────────────┘`);
+
+    if (!commandToRun) return await m.send(`
+⚠️  MISSING COMMAND
+┌─────────────────────┐
+│ Please provide a    │
+│ command to execute! │
+└─────────────────────┘`);
+
+    let stages = [
+      `
+╔═══════════════════════════╗
+║     🛠️  SYSTEM INIT      ║
+╠═══════════════════════════╣
+║  ⚡ Initializing systems  ║
+║  📡 Connecting modules    ║
+║  🔧 Preparing sequence    ║
+╚═══════════════════════════╝`,
+
+      `
+    ┌─────────────────────┐
+    │   🚀 LAUNCH MODE    │
+    │      ACTIVATED      │
+    └─────────────────────┘
+         \\       /
+          \\     /
+           \\   /
+            \\_/
+            ███
+           ▄███▄
+          ███████`,
+
+      `
+🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+║    ENGINE STATUS:    ║
+║  🔥 ENGINES HOT 🔥   ║
+║   💨 STEAM READY    ║
+║    ⚡ POWER FULL     ║
+🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥`
+    ];
+
+    let msg = await m.send(stages[0]);
+    await sleep(1500);
+    await m.client.sendMessage(m.chat, { edit: stages[1], id: msg.key.id });
+    await sleep(1500);
+    await m.client.sendMessage(m.chat, { edit: stages[2], id: msg.key.id });
+    await sleep(1500);
+
+    // Countdown loop
+    while (seconds > 0) {
+      let progressBar = "█".repeat(Math.floor((10 - seconds % 10) / 2)) + "░".repeat(5 - Math.floor((10 - seconds % 10) / 2));
+      let flames = seconds % 2 === 0 ? "🔥🔥🔥" : "💥💥💥";
+      let rocket = seconds % 3 === 0 ? "🚀" : seconds % 3 === 1 ? "🛸" : "⭐";
+      
+      let display = `
+╔═════════════════════════╗
+║    ${flames} COUNTDOWN ${flames}     ║
+╠═════════════════════════╣
+║                         ║
+║    ${rocket}  TIME: ${seconds.toString().padStart(2, '0')}s  ${rocket}     ║
+║                         ║
+║   [${progressBar}]    ║
+║                         ║
+╚═════════════════════════╝`;
+      
+      await m.client.sendMessage(m.chat, { edit: display, id: msg.key.id });
+      seconds--;
+      await sleep(1000);
+    }
+
+    // Final message before command execution
+    await m.client.sendMessage(m.chat, { edit: `
+╔═══════════════════════════╗
+║       💥 BLAST OFF! 💥    ║
+╠═══════════════════════════╣
+║                           ║
+║    🎯 EXECUTING COMMAND   ║
+║      ⚡ STAND BY ⚡      ║
+║                           ║
+╚═══════════════════════════╝`, id: msg.key.id });
+    await sleep(800);
+
+    // Send actual command with prefix (THIS STAYS UNCHANGED)
+    const prefix = "|"; // change if needed
+    await m.send(`${prefix}${commandToRun}`);
+
+  } catch (err) {
+    console.error(err);
+    return await m.send(`
+╔═══════════════════════════╗
+║       ❌ ERROR ❌         ║
+╠═══════════════════════════╣
+║  Something went wrong!    ║
+║  Please try again later   ║
+╚═══════════════════════════╝`);
+  }
+});
+
+// Helper delay
+function sleep(ms) {
+  return new Promise(res => setTimeout(res, ms));
+  }
+
+
+
+
+
 
 
 // Enhanced Codex System with Natural Language Processing
