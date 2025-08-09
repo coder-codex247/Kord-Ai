@@ -2680,121 +2680,191 @@ setInterval(() => {
 
 
 
- 
+
+
+
 
 kord({
-  cmd: "shadowban",
-  desc: "fake ban prank 😈",
+  cmd: "countdown",
+  desc: "Fun countdown that executes a command after finish",
+  gc: true,
+  fromMe: false,
   type: "group",
-  fromMe: false
-}, async ({ msg, args }) => {
-  const user = msg.mentionedJid?.[0] || msg.reply_message?.sender || msg.sender;
+}, async (m, text) => {
+  try {
+    if (!text) return await m.send(`
+╔══════════════════════════════╗
+║        ⏰ COUNTDOWN HELP      ║
+╠══════════════════════════════╣
+║ Usage: countdown <seconds> <cmd>
+║ Example: countdown 30 mute   ║
+╚══════════════════════════════╝`);
 
-  // if (!user) return msg.client.sendMessage(msg.chat, {text: "❌ *Target not found*\n\n> Tag or reply someone to shadowban 😈"});
+    const [secStr, ...cmdArr] = text.split(" ");
+    let seconds = parseInt(secStr);
+    const totalSeconds = seconds;
+    const commandToRun = cmdArr.join(" ");
+    
+    if (isNaN(seconds) || seconds < 1) return await m.send(`
+⚠️  INVALID INPUT
+┌─────────────────┐
+│ Please enter a  │
+│ valid number!   │
+└─────────────────┘`);
 
-  const target = user.split("@")[0];
-  const targetName = msg.pushName || target;
+    if (!commandToRun) return await m.send(`
+⚠️  MISSING COMMAND
+┌─────────────────────┐
+│ Please provide a    │
+│ command to execute! │
+└─────────────────────┘`);
 
-  const frames = [
-    "🔗 Establishing secure connection... ▓░░░░░░░░░ 8%",
-    "🌐 Bypassing WhatsApp encryption... ▓▓░░░░░░░░ 16%", 
-    "🔐 Breaching target device security... ▓▓▓░░░░░░░ 24%",
-    "📡 Accessing Meta servers backdoor... ▓▓▓▓░░░░░░ 32%",
-    "🛡️ Injecting malicious payload... ▓▓▓▓▓░░░░░ 40%",
-    "⚡ Escalating admin privileges... ▓▓▓▓▓▓░░░░ 48%",
-    "🎯 Locating target profile data... ▓▓▓▓▓▓▓░░░ 56%",
-    "💀 Deploying shadowban algorithm... ▓▓▓▓▓▓▓▓░░ 64%",
-    "🔥 Corrupting account database... ▓▓▓▓▓▓▓▓▓░ 72%",
-    "⚠️ Finalizing permanent ban... ▓▓▓▓▓▓▓▓▓▓ 80%",
-    "🚫 Processing ban request... ▓▓▓▓▓▓▓▓▓▓ 88%",
-    "✅ Operation completed successfully ▓▓▓▓▓▓▓▓▓▓ 100%"
-  ];
+    let stages = [
+      `
+╔═══════════════════════════╗
+║     🛠️  SYSTEM INIT      ║
+╠═══════════════════════════╣
+║  ⚡ Initializing systems  ║
+║  📡 Connecting modules    ║
+║  🔧 Preparing sequence    ║
+╚═══════════════════════════╝`,
 
-  const initialMsg = await msg.client.sendMessage(msg.chat, {
-  text: `
-╭─╼[ *🔴 𝙎𝙃𝘼𝘿𝙊𝙒𝘽𝘼𝙉 𝙄𝙉𝙄𝙏𝙄𝘼𝙏𝙀𝘿* ]╾─╮
-│
-│  🎯 TARGET: @${target}
-│  ⚡ STATUS: *Scanning...*
-│  🌐 CONNECTION: *Establishing...*
-│  
-│  ⚠️ *UNAUTHORIZED ACCESS DETECTED*
-│  💀 *INITIATING SHADOWBAN PROTOCOL*
-│
-╰─╼[ 𝐂𝐨𝐝𝐞𝐱 𝐇𝐚𝐜𝐤𝐞𝐫 𝐓𝐨𝐨𝐥𝐬 ]╾─╯
+      `
+    ┌─────────────────────┐
+    │   🚀 LAUNCH MODE    │
+    │      ACTIVATED      │
+    └─────────────────────┘
+         \\       /
+          \\     /
+           \\   /
+            \\_/
+            ███
+           ▄███▄
+          ███████`,
 
-🔄 *Initializing hack sequence...*`,
-  mentions: [user],
+      `
+🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+║    ENGINE STATUS:    ║
+║  🔥 ENGINES HOT 🔥   ║
+║   💨 STEAM READY    ║
+║    ⚡ POWER FULL     ║
+🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥`
+    ];
+
+    // Send first stage
+    let msg = await m.send(stages[0]);
+    await sleep(1500);
+    msg = await m.edit(stages[1], msg.key);
+    await sleep(1500);
+    msg = await m.edit(stages[2], msg.key);
+    await sleep(1500);
+
+    // Countdown loop
+    while (seconds > 0) {
+      let progress = Math.floor(((totalSeconds - seconds) / totalSeconds) * 10);
+      let progressBar = "█".repeat(progress) + "░".repeat(10 - progress);
+      let flames = seconds % 2 === 0 ? "🔥🔥🔥" : "💥💥💥";
+      let rocket = seconds % 3 === 0 ? "🚀" : seconds % 3 === 1 ? "🛸" : "⭐";
+      
+      let display = `
+╔═════════════════════════╗
+║    ${flames} COUNTDOWN ${flames}     ║
+╠═════════════════════════╣
+║                         ║
+║    ${rocket}  TIME: ${seconds.toString().padStart(2, '0')}s  ${rocket}     ║
+║                         ║
+║   [${progressBar}]     ║
+║                         ║
+╚═════════════════════════╝`;
+      
+      msg = await m.edit(display, msg.key);
+      seconds--;
+      await sleep(1000);
+    }
+
+    // Final message before command execution
+    await m.edit(`
+╔═══════════════════════════╗
+║       💥 BLAST OFF! 💥    ║
+╠═══════════════════════════╣
+║                           ║
+║    🎯 EXECUTING COMMAND   ║
+║      ⚡ STAND BY ⚡      ║
+║                           ║
+╚═══════════════════════════╝`, msg.key);
+    
+    await sleep(800);
+
+    // Send actual command with prefix
+    const prefix = "|"; // change if needed
+    await m.send(`${prefix}${commandToRun}`);
+
+  } catch (err) {
+    console.error(err);
+    return await m.send(`
+╔═══════════════════════════╗
+║       ❌ ERROR ❌         ║
+╠═══════════════════════════╣
+║  Something went wrong!    ║
+║  Please try again later   ║
+╚═══════════════════════════╝`);
+  }
 });
 
-  // Animate through frames
-  for (let i = 0; i < frames.length; i++) {
-    const progress = Math.round(((i + 1) / frames.length) * 100);
-    const statusText = i < 4 ? "*BREACHING*" : i < 8 ? "*HACKING*" : "*BANNING*";
-    
-    const hackingBanner = `
-╭─╼[ *🔴 𝙎𝙃𝘼𝘿𝙊𝙒𝘽𝘼𝙉 𝙄𝙉 𝙋𝙍𝙊𝙂𝙍𝙀𝙎𝙎* ]╾─╮
-│
-│  🎯 TARGET: @${target}
-│  ⚡ STATUS: ${statusText}
-│  🌐 CONNECTION: *ESTABLISHED*
-│  
-│  ${frames[i]}
-│  
-│  💀 *SHADOWBAN PROTOCOL ACTIVE*
-│  🔥 *BYPASSING SECURITY SYSTEMS...*
-│
-╰─╼[ 𝐂𝐨𝐝𝐞𝐱 𝐇𝐚𝐜𝐤𝐞𝐫 𝐓𝐨𝐨𝐥𝐬 ]╾─╯
+// Helper delay
+function sleep(ms) {
+  return new Promise(res => setTimeout(res, ms));
+        }
 
-⚠️ *${progress}% Complete - DO NOT CLOSE*`;
 
-    await msg.client.sendMessage(msg.chat, { 
-      edit: initialMsg.key, 
-      text: hackingBanner,
-      mentions: [user]
-    });
-    
-    await new Promise(resolve => setTimeout(resolve, 800));
+
+
+
+
+
+
+
+
+
+
+kord({
+  cmd: "getnum",
+  desc: "Get the phone number of a mentioned user",
+  gc: true,
+  fromMe: false,
+  type: "group",
+}, async (m, text) => {
+  try {
+    let target;
+
+    // If user tagged someone
+    if (m.mentionedJid && m.mentionedJid.length > 0) {
+      target = m.mentionedJid[0];
+    }
+    // If user replied to someone
+    else if (m.quoted) {
+      target = m.quoted.sender;
+    }
+    // If no tag/reply, try the number in text
+    else if (text) {
+      target = text.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+    } else {
+      return await m.send("❌ Please tag, reply, or provide a number.");
+    }
+
+    // Extract clean number
+    let cleanNumber = target.split("@")[0];
+    if (!cleanNumber.startsWith("+")) cleanNumber = `+${cleanNumber}`;
+
+    await m.send(`
+📋 *Phone Number Found!*
+────────────────
+*Number:* \`${cleanNumber}\`
+────────────────
+✅ Number copied to Clipboard.
+    `);
+  } catch (err) {
+    console.error(err);
+    await m.send("❌ Error fetching number. Try again.");
   }
-
-  // Final dramatic result
-  const finalResult = `
-╭─╼[ *💀 𝙎𝙃𝘼𝘿𝙊𝙒𝘽𝘼𝙉 𝘾𝙊𝙈𝙋𝙇𝙀𝙏𝙀* ]╾─╮
-│
-│  🎯 TARGET: @${target}
-│  ⚡ STATUS: *SHADOWBANNED* ❌
-│  🌐 CONNECTION: *TERMINATED*
-│  
-│  ✅ *OPERATION SUCCESSFUL*
-│  ━━━━━━━━━━━━━━━━━━━━━━━━━━
-│  
-│  📊 *BAN DETAILS:*
-│  ├ 🚫 WhatsApp: *BANNED*
-│  ├ 📘 Facebook: *BANNED*  
-│  ├ 📷 Instagram: *BANNED*
-│  ├ 💬 Messenger: *BANNED*
-│  └ 🧵 Threads: *BANNED*
-│  
-│  ⚠️ *User will be unable to:*
-│  • Send messages (ghosted)
-│  • Join new groups
-│  • Update profile/status
-│  • Access Meta services
-│
-╰─╼[ 𝐒𝐡𝐚𝐝𝐨𝐰𝐛𝐚𝐧 𝐂𝐨𝐦𝐩𝐥𝐞𝐭𝐞 ]╾─╯
-
-💀 *${targetName} has been SHADOWBANNED* 💀
-🔥 *Account compromised across all Meta platforms*
-⚡ *Ban Duration: PERMANENT* ⚡
-
-❝ Another victim falls to Codex... ❞
-❝ Their digital existence... erased. ❞
-
-*─ Next time you no go try me 😈 ─*`;
-
-  await msg.client.sendMessage(msg.chat, { 
-    edit: initialMsg.key, 
-    text: finalResult,
-    mentions: [user]
-  });
 });
