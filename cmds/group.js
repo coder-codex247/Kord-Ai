@@ -25,6 +25,9 @@ const {
 } = require("../core")
 const { warn } = require("../core/db")
 const pre = prefix 
+const os = require("os");
+const http = require("http");
+
 
 kord({
 cmd: "join",
@@ -2100,3 +2103,863 @@ kord({
   gc: true,
   adminOnly: true
 }, async (m, text, c, store) => listOnlineOffline(m, text, store, "offline"))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Enhanced Codex AI Chat System
+// Global state for AI chat sessions
+const codexSessions = new Map();
+
+// User hierarchy
+const MASTER = "2348058496605";
+const QUEEN_SHA = "2349167956058"; 
+const JEMZIE = "2348065300209";
+const PRECIOUS = "447445278748";
+
+const normalizeJid = (jid) => jid.split(":")[0].replace(/[^0-9]/g, "");
+
+// AI Service Configuration (using Groq API)
+const AI_CONFIG = {
+  apiUrl: 'https://api.groq.com/openai/v1/chat/completions',
+  model: 'llama3-8b-8192', // Free tier model
+  apiKey: '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', // Get from https://console.groq.com/
+  maxTokens: 150,
+  temperature: 0.7
+};
+
+// AI Chat function
+async function chatWithAI(message, userName) {
+  try {
+    const response = await fetch(AI_CONFIG.apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${AI_CONFIG.apiKey}`
+      },
+      body: JSON.stringify({
+        model: AI_CONFIG.model,
+        messages: [
+          {
+            role: 'system',
+            content: `You are Codex, an advanced AI with a confident, cool personality. You're knowledgeable but not arrogant. Keep responses concise (under 100 words) and engaging. Add subtle sass when appropriate. You're talking to ${userName}.`
+          },
+          {
+            role: 'user',
+            content: message
+          }
+        ],
+        max_tokens: AI_CONFIG.maxTokens,
+        temperature: AI_CONFIG.temperature
+      })
+    });
+
+    const data = await response.json();
+    
+    if (data.choices && data.choices[0]) {
+      return data.choices[0].message.content.trim();
+    } else {
+      return "🤖 *AI systems temporarily offline. Try again later.*";
+    }
+  } catch (error) {
+    console.error('AI API Error:', error);
+    return "⚠️ *Neural networks are having a moment. Give me a sec...*";
+  }
+}
+
+// User type detection
+function getUserType(userJid) {
+  const normalizedJid = normalizeJid(userJid);
+  
+  if (normalizedJid === MASTER) return 'master';
+  if (normalizedJid === normalizeJid(QUEEN_SHA)) return 'queen';
+  if (normalizedJid === normalizeJid(JEMZIE)) return 'jemzie';
+  if (normalizedJid === normalizeJid(PRECIOUS)) return 'precious';
+  return 'user';
+}
+
+// Get user display name
+function getUserName(userJid, userType) {
+  switch (userType) {
+    case 'master': return 'Master';
+    case 'queen': return 'Queen Sha';
+    case 'jemzie': return 'Jemzie';
+    case 'precious': return 'Precious';
+    default: return 'Human';
+  }
+}
+
+// Activation responses for different user types
+const activationResponses = {
+  master: {
+    loading: "⚡ Master presence detected...",
+    frames: [
+      "🔮 Neural Link: ▰▱▱▱▱▱▱▱▱▱ 10%",
+      "🔮 Neural Link: ▰▰▰▱▱▱▱▱▱▱ 30%",
+      "🔮 Neural Link: ▰▰▰▰▰▱▱▱▱▱ 50%",
+      "🔮 Neural Link: ▰▰▰▰▰▰▰▱▱▱ 70%",
+      "🔮 Neural Link: ▰▰▰▰▰▰▰▰▰▱ 90%",
+      "🔮 Neural Link: ▰▰▰▰▰▰▰▰▰▰ 100%"
+    ],
+    banner: `
+┌─━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─┐
+│     ⚡ 𝗠𝗔𝗦𝗧𝗘𝗥 𝗣𝗥𝗢𝗧𝗢𝗖𝗢𝗟     │
+└─━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─┘
+
+🔮 𝗔𝗜 𝗦𝘆𝘀𝘁𝗲𝗺: 𝗙𝘂𝗹𝗹𝘆 𝗢𝗻𝗹𝗶𝗻𝗲
+⚡ 𝗣𝗿𝗼𝗰𝗲𝘀𝘀𝗶𝗻𝗴: 𝗔𝗱𝘃𝗮𝗻𝗰𝗲𝗱 𝗠𝗼𝗱𝗲
+🧠 𝗜𝗻𝘁𝗲𝗹𝗹𝗶𝗴𝗲𝗻𝗰𝗲: 𝗣𝗿𝗶𝗺𝗲
+⏱️ 𝗦𝗲𝘀𝘀𝗶𝗼𝗻: 𝟯 𝗺𝗶𝗻𝘂𝘁𝗲𝘀
+
+❝ Your digital consciousness awaits ❞
+❝ Speak your mind, Master ❞`,
+    color: "⚡"
+  },
+  
+  queen: {
+    loading: "👑 Royal presence detected...",
+    frames: [
+      "💎 Royal Link: ◆◇◇◇◇◇◇◇◇◇ 10%",
+      "💎 Royal Link: ◆◆◆◇◇◇◇◇◇◇ 30%",
+      "💎 Royal Link: ◆◆◆◆◆◇◇◇◇◇ 50%",
+      "💎 Royal Link: ◆◆◆◆◆◆◆◇◇◇ 70%",
+      "💎 Royal Link: ◆◆◆◆◆◆◆◆◆◇ 90%",
+      "💎 Royal Link: ◆◆◆◆◆◆◆◆◆◆ 100%"
+    ],
+    banner: `
+┌─━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─┐
+│     👑 𝗥𝗢𝗬𝗔𝗟 𝗔𝗖𝗖𝗘𝗦𝗦     │
+└─━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─┘
+
+✨ 𝗤𝘂𝗲𝗲𝗻 𝗠𝗼𝗱𝗲: 𝗔𝗰𝘁𝗶𝘃𝗮𝘁𝗲𝗱
+👑 𝗥𝗼𝘆𝗮𝗹 𝗔𝗜: 𝗢𝗻𝗹𝗶𝗻𝗲
+💎 𝗦𝗽𝗲𝗰𝗶𝗮𝗹 𝗧𝗿𝗲𝗮𝘁𝗺𝗲𝗻𝘁: 𝗘𝗻𝗮𝗯𝗹𝗲𝗱
+⏱️ 𝗦𝗲𝘀𝘀𝗶𝗼𝗻: 𝟯 𝗺𝗶𝗻𝘂𝘁𝗲𝘀
+
+❝ At your service, Your Majesty ❞
+❝ Your wisdom shapes my responses ❞`,
+    color: "👑"
+  },
+  
+  jemzie: {
+    loading: "😎 Cool vibes detected...",
+    frames: [
+      "🔥 Vibe Sync: ●○○○○○○○○○ 10%",
+      "🔥 Vibe Sync: ●●●○○○○○○○ 30%",
+      "🔥 Vibe Sync: ●●●●●○○○○○ 50%",
+      "🔥 Vibe Sync: ●●●●●●●○○○ 70%",
+      "🔥 Vibe Sync: ●●●●●●●●●○ 90%",
+      "🔥 Vibe Sync: ●●●●●●●●●● 100%"
+    ],
+    banner: `
+┌─━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─┐
+│     😎 𝗖𝗢𝗢𝗟 𝗠𝗢𝗗𝗘 𝗔𝗖𝗧𝗜𝗩𝗘     │
+└─━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─┘
+
+🔥 𝗖𝗵𝗶𝗹𝗹 𝗔𝗜: 𝗥𝗲𝗮𝗱𝘆
+😎 𝗩𝗶𝗯𝗲 𝗖𝗵𝗲𝗰𝗸: 𝗣𝗮𝘀𝘀𝗲𝗱
+💯 𝗙𝗿𝗶𝗲𝗻𝗱 𝗠𝗼𝗱𝗲: 𝗔𝗰𝘁𝗶𝘃𝗲
+⏱️ 𝗦𝗲𝘀𝘀𝗶𝗼𝗻: 𝟯 𝗺𝗶𝗻𝘂𝘁𝗲𝘀
+
+❝ What's good, Jemzie? ❞
+❝ Ready for whatever you need ❞`,
+    color: "😎"
+  },
+  
+  precious: {
+    loading: "💖 Special presence detected...",
+    frames: [
+      "💝 Heart Link: ♡♡♡♡♡♡♡♡♡♡ 0%",
+      "💝 Heart Link: ♥♡♡♡♡♡♡♡♡♡ 15%",
+      "💝 Heart Link: ♥♥♥♡♡♡♡♡♡♡ 35%",
+      "💝 Heart Link: ♥♥♥♥♥♡♡♡♡♡ 55%",
+      "💝 Heart Link: ♥♥♥♥♥♥♥♡♡♡ 75%",
+      "💝 Heart Link: ♥♥♥♥♥♥♥♥♥♡ 95%",
+      "💝 Heart Link: ♥♥♥♥♥♥♥♥♥♥ 100%"
+    ],
+    banner: `
+┌─━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─┐
+│     💖 𝗣𝗥𝗘𝗖𝗜𝗢𝗨𝗦 𝗠𝗢𝗗𝗘     │
+└─━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─┘
+
+💝 𝗦𝗽𝗲𝗰𝗶𝗮𝗹 𝗔𝗜: 𝗔𝗰𝘁𝗶𝘃𝗮𝘁𝗲𝗱
+💖 𝗖𝗮𝗿𝗲 𝗠𝗼𝗱𝗲: 𝗘𝗻𝗮𝗯𝗹𝗲𝗱
+✨ 𝗚𝗲𝗻𝘁𝗹𝗲 𝗔𝗜: 𝗢𝗻𝗹𝗶𝗻𝗲
+⏱️ 𝗦𝗲𝘀𝘀𝗶𝗼𝗻: 𝟯 𝗺𝗶𝗻𝘂𝘁𝗲𝘀
+
+❝ Hello beautiful Precious ❞
+❝ I'm here whenever you need me ❞`,
+    color: "💖"
+  },
+  
+  user: {
+    loading: "🤖 Human detected...",
+    frames: [
+      "🌐 Connection: ▓░░░░░░░░░ 10%",
+      "🌐 Connection: ▓▓▓░░░░░░░ 30%",
+      "🌐 Connection: ▓▓▓▓▓░░░░░ 50%",
+      "🌐 Connection: ▓▓▓▓▓▓▓░░░ 70%",
+      "🌐 Connection: ▓▓▓▓▓▓▓▓▓░ 90%",
+      "🌐 Connection: ▓▓▓▓▓▓▓▓▓▓ 100%"
+    ],
+    banner: `
+┌─━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─┐
+│     🤖 𝗖𝗢𝗗𝗘𝗫 𝗔𝗜 𝗢𝗡𝗟𝗜𝗡𝗘     │
+└─━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━─┘
+
+🧠 𝗔𝗜 𝗦𝘆𝘀𝘁𝗲𝗺: 𝗔𝗰𝘁𝗶𝘃𝗲
+🌐 𝗖𝗵𝗮𝘁 𝗠𝗼𝗱𝗲: 𝗘𝗻𝗮𝗯𝗹𝗲𝗱
+💬 𝗖𝗼𝗻𝘃𝗲𝗿𝘀𝗮𝘁𝗶𝗼𝗻: 𝗥𝗲𝗮𝗱𝘆
+⏱️ 𝗦𝗲𝘀𝘀𝗶𝗼𝗻: 𝟯 𝗺𝗶𝗻𝘂𝘁𝗲𝘀
+
+❝ A human seeks my knowledge ❞
+❝ Start your message with 'codex' to chat ❞`,
+    color: "🤖"
+  }
+};
+
+// Main Codex handler
+kord({
+  on: "text",
+  fromMe: false,
+  type: "codex_ai",
+}, async (m, text) => {
+  if (!m.isGroup || !text) return;
+
+  const msg = text.toLowerCase().trim();
+  const userType = getUserType(m.sender);
+  const userName = getUserName(m.sender, userType);
+
+  // Handle direct "codex" summon
+  if (msg === "codex") {
+    const response = activationResponses[userType];
+    
+    // Start loading animation
+    const loadingMsg = await m.send(response.loading);
+
+    // Animate frames
+    for (let i = 0; i < response.frames.length; i++) {
+      const loadingBanner = `
+╭─────────────────────────────────╮
+│     ${response.color} 𝗖𝗢𝗗𝗘𝗫 𝗜𝗡𝗜𝗧𝗜𝗔𝗟𝗜𝗭𝗜𝗡𝗚     │
+╰─────────────────────────────────╯
+
+${response.frames[i]}
+
+🔄 Loading AI systems...
+💭 Preparing neural networks...
+⚡ Calibrating responses...`;
+
+      await m.client.sendMessage(m.chat, { edit: loadingMsg.key, text: loadingBanner });
+      await new Promise((r) => setTimeout(r, 800));
+    }
+
+    // Show final banner
+    await m.client.sendMessage(m.chat, { edit: loadingMsg.key, text: response.banner });
+
+    // Start 3-minute listening session
+    codexSessions.set(m.chat, {
+      active: true,
+      startTime: Date.now(),
+      userType: userType,
+      userName: userName,
+      messageCount: 0
+    });
+
+    // Auto-expire session after 3 minutes
+    setTimeout(() => {
+      if (codexSessions.has(m.chat)) {
+        codexSessions.delete(m.chat);
+        const expireMsg = userType === 'master' ? 
+          "⚡ *Neural link disconnected. Say 'codex' to reconnect, Master.*" :
+          userType === 'queen' ? 
+          "👑 *Royal session ended. Say 'codex' to reconnect, Your Majesty.*" :
+          userType === 'jemzie' ?
+          "😎 *Session timed out. Hit me up again, Jemzie!*" :
+          userType === 'precious' ?
+          "💖 *Chat session ended. Say 'codex' anytime, beautiful.*" :
+          "🤖 *AI session timed out. Say 'codex' to start a new conversation.*";
+        
+        m.send(expireMsg);
+      }
+    }, 180000); // 3 minutes
+
+    return;
+  }
+
+  // Handle AI chat during active session
+  if (msg.startsWith("codex ") && codexSessions.has(m.chat)) {
+    const session = codexSessions.get(m.chat);
+    
+    if (!session.active) return;
+
+    // Extract message without "codex" prefix
+    const userMessage = text.slice(6).trim();
+    
+    if (!userMessage) {
+      await m.send("🤔 *You summoned me but said nothing. What's on your mind?*");
+      return;
+    }
+
+    // Show typing indicator
+    const thinkingMsg = await m.send("🧠 *Processing your request...*");
+
+    try {
+      // Get AI response
+      const aiResponse = await chatWithAI(userMessage, session.userName);
+      
+      // Format response based on user type
+      const formattedResponse = formatAIResponse(aiResponse, session.userType, session.userName);
+      
+      // Send AI response
+      await m.client.sendMessage(m.chat, { edit: thinkingMsg.key, text: formattedResponse });
+      
+      // Update session
+      session.messageCount++;
+      
+    } catch (error) {
+      console.error('AI Chat Error:', error);
+      await m.client.sendMessage(m.chat, { 
+        edit: thinkingMsg.key, 
+        text: "⚠️ *My neural networks are experiencing turbulence. Please try again.*" 
+      });
+    }
+  }
+});
+
+// Format AI response based on user type
+function formatAIResponse(response, userType, userName) {
+  const icons = {
+    master: "⚡",
+    queen: "👑", 
+    jemzie: "😎",
+    precious: "💖",
+    user: "🤖"
+  };
+
+  const icon = icons[userType];
+  
+  return `╭─────────────────────────────────╮
+│ ${icon} 𝗖𝗢𝗗𝗘𝗫 𝗔𝗜 𝗥𝗘𝗦𝗣𝗢𝗡𝗦𝗘 ${icon} │
+╰─────────────────────────────────╯
+
+${response}
+
+━━━━━━━━━━━━━━━━━━━━━
+💬 *Continue with:* codex [your message]`;
+}
+
+// Session cleanup
+setInterval(() => {
+  const now = Date.now();
+  for (const [chatId, session] of codexSessions.entries()) {
+    if (now - session.startTime > 180000) { // 3 minutes
+      codexSessions.delete(chatId);
+    }
+  }
+}, 60000); // Check every minute
+
+// Export functions for external use if needed
+module.exports = {
+  codexSessions,
+  chatWithAI,
+  getUserType,
+  formatAIResponse
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+kord({
+  cmd: "spamtags",
+  desc: "Spam hidden tags with custom message",
+  gc: true,
+  fromMe: false, // allow anyone
+  type: "group",
+}, async (m, text) => {
+  try {
+    if (!text) return await m.send(`✘ Usage: spamtags <count> <message>\nExample: spamtags 5 hello`);
+    
+    const [countStr, ...msgArr] = text.split(" ");
+    const count = parseInt(countStr);
+    const message = msgArr.join(" ");
+    
+    if (isNaN(count) || count < 1) return await m.send("✘ Invalid count number");
+    if (!message) return await m.send("✘ Please provide a message");
+    
+    const { participants } = await m.client.groupMetadata(m.chat);
+    const mentions = participants.map(a => a.jid);
+    
+    for (let i = 0; i < count; i++) {
+      await m.send(message, { mentions });
+      await sleep(500); // delay to avoid rate limit
+    }
+  } catch (e) {
+    console.log("cmd error", e);
+    return await m.sendErr(e);
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let activeGames = {}; // { groupId: { difficulty, answer, timer, startTime, round, streak, scores, hints, lastSolver } }
+
+const DIFFICULTY_CONFIG = {
+  easy: { points: 10, timeLimit: 45, emoji: "🟢", color: "GREEN" },
+  medium: { points: 20, timeLimit: 35, emoji: "🟡", color: "YELLOW" },
+  hard: { points: 30, timeLimit: 25, emoji: "🔴", color: "RED" }
+};
+
+const GAME_EMOJIS = {
+  start: "🎮",
+  correct: "✅",
+  wrong: "❌",
+  timeout: "⏰",
+  hint: "💡",
+  trophy: "🏆",
+  fire: "🔥",
+  brain: "🧠",
+  star: "⭐",
+  crown: "👑"
+};
+
+function shuffleWord(word) {
+  let shuffled = word;
+  let attempts = 0;
+  // Ensure the shuffled word is different from original
+  while (shuffled === word && attempts < 10) {
+    shuffled = word.split("").sort(() => 0.5 - Math.random()).join("");
+    attempts++;
+  }
+  return shuffled;
+}
+
+function getRandomWord(difficulty) {
+  const dataPath = path.join(__dirname, "..", "core", "unscramble_word.json");
+  const words = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+  const list = words[difficulty] || [];
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+function generateHint(word) {
+  const hints = [];
+  
+  // Length hint
+  hints.push(`${word.length} letters`);
+  
+  // First letter hint
+  hints.push(`starts with "${word[0].toUpperCase()}"`);
+  
+  // Vowel count hint
+  const vowels = word.match(/[aeiou]/gi) || [];
+  hints.push(`${vowels.length} vowel${vowels.length !== 1 ? 's' : ''}`);
+  
+  // Category hint (you can expand this based on your word categories)
+  if (word.length <= 4) hints.push("short word");
+  else if (word.length >= 8) hints.push("long word");
+  
+  return hints[Math.floor(Math.random() * hints.length)];
+}
+
+function formatTime(seconds) {
+  return `${seconds}s`;
+}
+
+function createProgressBar(remaining, total) {
+  const filled = Math.floor((remaining / total) * 10);
+  const empty = 10 - filled;
+  return "█".repeat(filled) + "░".repeat(empty);
+}
+
+async function sendGameStats(m, game) {
+  const topScorers = Object.entries(game.scores)
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 5)
+    .map(([user, score], index) => {
+      const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "🏅";
+      return `${medal} @${user.split("@")[0]}: ${score} pts`;
+    });
+
+  const stats = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.trophy} GAME STATISTICS ${GAME_EMOJIS.trophy}  │
+├─────────────────────┤
+│ Round: ${game.round}               │
+│ Streak: ${game.streak} ${game.streak > 5 ? GAME_EMOJIS.fire : ""}          │
+│ Difficulty: ${DIFFICULTY_CONFIG[game.difficulty].emoji} ${game.difficulty.toUpperCase()}      │
+├─────────────────────┤
+│     TOP SCORERS     │
+${topScorers.map(scorer => `│ ${scorer.padEnd(19)} │`).join('\n')}
+${topScorers.length === 0 ? `│ No scores yet!     │` : ''}
+╰─────────────────────╯`;
+
+  await m.send(stats, {
+    mentions: Object.keys(game.scores)
+  });
+}
+
+async function sendNextWord(m, difficulty) {
+  const word = getRandomWord(difficulty);
+  const shuffled = shuffleWord(word);
+  const config = DIFFICULTY_CONFIG[difficulty];
+  
+  const game = activeGames[m.chat];
+  if (game) {
+    game.round++;
+    game.answer = word;
+    game.startTime = Date.now();
+    game.hints = 0;
+  } else {
+    activeGames[m.chat] = {
+      difficulty,
+      answer: word,
+      startTime: Date.now(),
+      round: 1,
+      streak: 0,
+      scores: {},
+      hints: 0,
+      lastSolver: null
+    };
+  }
+
+  const gameState = activeGames[m.chat];
+  
+  // Clear existing timer
+  if (gameState.timer) {
+    clearTimeout(gameState.timer);
+  }
+
+  const gameMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.start} UNSCRAMBLE CHALLENGE ${GAME_EMOJIS.start}  │
+├─────────────────────┤
+│                     │
+│   ${shuffled.toUpperCase().split('').join(' ')}   │
+│                     │
+├─────────────────────┤
+│ ${config.emoji} ${difficulty.toUpperCase()} • Round ${gameState.round}    │
+│ ${GAME_EMOJIS.star} ${config.points} Points • ⏰ ${config.timeLimit}s    │
+│ 💡 Type "hint" for clue │
+╰─────────────────────╯
+
+${GAME_EMOJIS.brain} *Unscramble the word above!*
+_First correct answer wins ${config.points} points!_`;
+
+  await m.send(gameMessage);
+
+  // Set timeout for the word
+  gameState.timer = setTimeout(async () => {
+    if (activeGames[m.chat] && activeGames[m.chat].answer === word) {
+      activeGames[m.chat].streak = 0; // Reset streak on timeout
+      
+      const timeoutMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.timeout} TIME'S UP! ${GAME_EMOJIS.timeout}          │
+├─────────────────────┤
+│ The word was:       │
+│   *${word.toUpperCase()}*   │
+│                     │
+│ ${GAME_EMOJIS.brain} Better luck next time! │
+╰─────────────────────╯
+
+_Next word coming up..._`;
+      
+      await m.send(timeoutMessage);
+      
+      // Send next word after a short delay
+      setTimeout(() => {
+        if (activeGames[m.chat]) {
+          sendNextWord(m, difficulty);
+        }
+      }, 3000);
+    }
+  }, config.timeLimit * 1000);
+}
+
+kord({
+  cmd: "unscramble",
+  desc: "Enhanced word unscrambling game with scoring and timers",
+  fromMe: wtype,
+  type: "group"
+}, async (m, text) => {
+  const input = text?.trim().toLowerCase();
+
+  if (!input) {
+    const helpMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.start} UNSCRAMBLE GAME ${GAME_EMOJIS.start}     │
+├─────────────────────┤
+│                     │
+│ ${GAME_EMOJIS.brain} START GAME:          │
+│ • ${prefix}unscramble easy     │
+│ • ${prefix}unscramble medium   │
+│ • ${prefix}unscramble hard     │
+│                     │
+│ ${GAME_EMOJIS.trophy} GAME CONTROLS:       │
+│ • ${prefix}unscramble end      │
+│ • ${prefix}unscramble stats    │
+│ • Type "hint" for clue │
+│                     │
+│ ${GAME_EMOJIS.star} DIFFICULTY REWARDS:   │
+│ • 🟢 Easy: 10 pts (45s) │
+│ • 🟡 Medium: 20 pts (35s)│
+│ • 🔴 Hard: 30 pts (25s) │
+╰─────────────────────╯
+
+${GAME_EMOJIS.fire} *Challenge your friends and climb the leaderboard!*`;
+    
+    return await m.send(helpMessage);
+  }
+
+  if (input === "end") {
+    const game = activeGames[m.chat];
+    if (game?.timer) {
+      clearTimeout(game.timer);
+    }
+    
+    if (game && Object.keys(game.scores).length > 0) {
+      await sendGameStats(m, game);
+    }
+    
+    delete activeGames[m.chat];
+    return await m.send(`
+╭─────────────────────╮
+│  ${GAME_EMOJIS.correct} GAME ENDED ${GAME_EMOJIS.correct}         │
+├─────────────────────┤
+│ Thanks for playing! │
+│ ${GAME_EMOJIS.crown} Great job everyone! ${GAME_EMOJIS.crown}  │
+╰─────────────────────╯`);
+  }
+
+  if (input === "stats") {
+    const game = activeGames[m.chat];
+    if (!game) {
+      return await m.send(`${GAME_EMOJIS.wrong} No active game found! Start one with \`${prefix}unscramble easy\``);
+    }
+    return await sendGameStats(m, game);
+  }
+
+  if (["easy", "medium", "hard"].includes(input)) {
+    // Clear any existing game
+    const existingGame = activeGames[m.chat];
+    if (existingGame?.timer) {
+      clearTimeout(existingGame.timer);
+    }
+    
+    const startMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.start} GAME STARTING! ${GAME_EMOJIS.start}      │
+├─────────────────────┤
+│ Difficulty: ${DIFFICULTY_CONFIG[input].emoji} ${input.toUpperCase()}   │
+│ Get ready to think! │
+╰─────────────────────╯`;
+    
+    await m.send(startMessage);
+    
+    // Start the game after a short delay
+    setTimeout(() => {
+      sendNextWord(m, input);
+    }, 2000);
+    return;
+  }
+
+  await m.send(`${GAME_EMOJIS.wrong} Invalid option! Use \`easy\`, \`medium\`, \`hard\`, \`end\`, or \`stats\`.`);
+});
+
+kord({
+  on: "all",
+  fromMe: false
+}, async (m, text) => {
+  const game = activeGames[m.chat];
+  if (!game || !text || text.length < 2) return;
+
+  const guess = text.trim().toLowerCase();
+  
+  // Handle hint requests
+  if (guess === "hint" || guess === "💡") {
+    if (game.hints >= 2) {
+      return await m.send(`${GAME_EMOJIS.wrong} No more hints available for this word!`);
+    }
+    
+    game.hints++;
+    const hint = generateHint(game.answer);
+    const hintMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.hint} HINT ${game.hints}/2 ${GAME_EMOJIS.hint}           │
+├─────────────────────┤
+│ ${hint.padEnd(19)} │
+╰─────────────────────╯`;
+    
+    return await m.send(hintMessage);
+  }
+
+  // Check if guess is correct
+  if (guess === game.answer) {
+    // Clear the timer
+    if (game.timer) {
+      clearTimeout(game.timer);
+    }
+    
+    // Calculate points (bonus for speed and fewer hints)
+    const timeTaken = (Date.now() - game.startTime) / 1000;
+    const basePoints = DIFFICULTY_CONFIG[game.difficulty].points;
+    const speedBonus = Math.max(0, Math.floor((DIFFICULTY_CONFIG[game.difficulty].timeLimit - timeTaken) / 2));
+    const hintPenalty = game.hints * 2;
+    const totalPoints = Math.max(1, basePoints + speedBonus - hintPenalty);
+    
+    // Update scores
+    if (!game.scores[m.sender]) {
+      game.scores[m.sender] = 0;
+    }
+    game.scores[m.sender] += totalPoints;
+    
+    // Update streak
+    if (game.lastSolver === m.sender) {
+      game.streak++;
+    } else {
+      game.streak = 1;
+      game.lastSolver = m.sender;
+    }
+    
+    // Special streak bonuses
+    let streakBonus = 0;
+    if (game.streak >= 3) {
+      streakBonus = game.streak * 2;
+      game.scores[m.sender] += streakBonus;
+    }
+    
+    const successMessage = `
+╭─────────────────────╮
+│  ${GAME_EMOJIS.correct} CORRECT! ${GAME_EMOJIS.correct}            │
+├─────────────────────┤
+│ @${m.sender.split("@")[0].padEnd(17)} │
+│ got "${game.answer.toUpperCase()}" right!     │
+│                     │
+│ ${GAME_EMOJIS.star} Points: +${totalPoints}${speedBonus > 0 ? ` (+${speedBonus} speed)` : ''}  │
+${streakBonus > 0 ? `│ ${GAME_EMOJIS.fire} Streak: ${game.streak}! +${streakBonus} bonus │` : ''}
+│ ⏰ Time: ${formatTime(Math.floor(timeTaken))}           │
+│ Total: ${game.scores[m.sender]} pts          │
+╰─────────────────────╯
+
+_Next word in 3 seconds..._`;
+    
+    await m.send(successMessage, {
+      mentions: [m.sender]
+    });
+    
+    // Send next word after a delay
+    setTimeout(() => {
+      if (activeGames[m.chat]) {
+        sendNextWord(m, game.difficulty);
+      }
+    }, 3000);
+    
+    return;
+  }
+  
+  // Handle wrong guesses (only if they seem like attempts)
+  if (guess.length >= 3 && /^[a-z]+$/.test(guess)) {
+    const encouragement = [
+      "Not quite! Keep trying! 💪",
+      "Close, but not quite! 🤔",
+      "Try again! You've got this! 🎯",
+      "Almost there! Think harder! 🧠",
+      "Nope, but don't give up! 🔥"
+    ];
+    
+    // Don't spam - only respond occasionally to wrong guesses
+    if (Math.random() < 0.3) {
+      await m.send(encouragement[Math.floor(Math.random() * encouragement.length)]);
+    }
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
