@@ -30,6 +30,111 @@ const getRandomFont = () => {
   return "sansItalic"
 }
 
+// Modern design elements
+const designs = {
+  // Cyberpunk neon style
+  cyber: {
+    header: (botName) => `╭─────────●◉◎◉●─────────╮
+│    ▓▓ ${botName} ▓▓    │
+│  ◢◤◢◤ COMMAND MATRIX ◥◣◥◣  │
+╰─────────●◉◎◉●─────────╯`,
+    
+    categoryHeader: (cat, count) => `
+╔═══════▓▓▓ ${cat} ▓▓▓═══════╗
+║  ◆ ${count} Commands Available ◆  ║
+╚═════════════════════════════╝`,
+    
+    commandItem: (cmd) => `▸ ⟨${cmd}⟩`,
+    
+    footer: `╭─────●◉ STATUS ◉●─────╮
+│ SYSTEM: ONLINE ✓     │
+│ CONNECTION: STABLE   │
+╰─────────◉●◉─────────╯`
+  },
+
+  // Minimalist modern
+  minimal: {
+    header: (botName) => `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    ${botName}
+    Command Interface
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    
+    categoryHeader: (cat, count) => `
+▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
+   ${cat}  •  ${count} commands
+▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬`,
+    
+    commandItem: (cmd) => `• ${cmd}`,
+    
+    footer: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+  },
+
+  // Futuristic hologram
+  hologram: {
+    header: (botName) => `
+◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤
+▓░  ░▒▓█ ${botName} █▓▒░  ░▓
+◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢
+┃ HOLOGRAPHIC INTERFACE ACTIVE ┃
+◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤◢◤`,
+    
+    categoryHeader: (cat, count) => `
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+▓ ◆ ${cat} ◆
+▓ ${count} functions loaded
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓`,
+    
+    commandItem: (cmd) => `▣ ${cmd}`,
+    
+    footer: `◥◣◥◣◥◣◥◣◥◣◥◣◥◣◥◣◥◣◥◣◥◣◥◣`
+  },
+
+  // Elegant premium
+  premium: {
+    header: (botName) => `
+╔═══════════════════════════╗
+║  ◊ ◊ ◊  ${botName}  ◊ ◊ ◊  ║
+║    Premium Command Suite   ║
+╚═══════════════════════════╝`,
+    
+    categoryHeader: (cat, count) => `
+┌─────────────────────────────┐
+│   ▸ ${cat}
+│   ▸ ${count} available commands
+└─────────────────────────────┘`,
+    
+    commandItem: (cmd) => `◈ ${cmd}`,
+    
+    footer: `╚═══════════════════════════╝`
+  },
+
+  // Gaming/RGB style
+  gaming: {
+    header: (botName) => `
+▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+██ ░░░░░ ${botName} ░░░░░ ██
+██ ▓▓▓ GAMING CONSOLE ▓▓▓ ██
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀`,
+    
+    categoryHeader: (cat, count) => `
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+▓   🎮 ${cat}
+▓   🎯 ${count} Commands Ready
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓`,
+    
+    commandItem: (cmd) => `▶ ${cmd}`,
+    
+    footer: `▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀`
+  }
+}
+
+// Get random design style
+const getDesignStyle = () => {
+  const styles = Object.keys(designs)
+  return styles[Math.floor(Math.random() * styles.length)]
+}
+
 kord({
   cmd: "menu|help",
   desc: "list of commands",
@@ -53,46 +158,30 @@ kord({
     const more = String.fromCharCode(8206)
     const readmore = more.repeat(4001)
     
+    // Select random design style for variety
+    const currentDesign = designs[getDesignStyle()]
+    
     if (requestedType && availableTypes.includes(requestedType)) {
       const actualType = Object.keys(types).find(t => t.toLowerCase() === requestedType)
       
       const at = await changeFont(actualType.toUpperCase(), "monospace")
       const cmdList = types[actualType].map(cmd => 
-        `│ ${prefix}${cmd.replace(/[^a-zA-Z0-9-+]/g, "")}`
+        currentDesign.commandItem(`${prefix}${cmd.replace(/[^a-zA-Z0-9-+]/g, "")}`)
       ).join('\n')
       const formattedCmds = await changeFont(cmdList, getRandomFont())
       
-      let menu = `\`\`\`┌────═━┈ ${config().BOT_NAME} ┈━═────┐
- ✇ ▸ Category: ${actualType.toUpperCase()}
- ✇ ▸ Commands: ${types[actualType].length}
- ✇ ▸ Prefix: ${prefix}
-└──────═━┈┈━═──────┘\`\`\`
+      let menu = `${currentDesign.header(config().BOT_NAME)}
 ${readmore}
 
-     ┏ ${at} ┓ 
-┍   ─┉─ • ─┉─    ┑ 
+${currentDesign.categoryHeader(actualType.toUpperCase(), types[actualType].length)}
+
 ${formattedCmds}
-┕    ─┉─ • ─┉─   ┙ 
 
-Tip: Use ${prefix}menu to see all categories`
+${currentDesign.footer}
+
+💡 Tip: Use ${prefix}menu to see all categories`
       
-      const bodyContent = `     ┏ ${at} ┓ 
-┍   ─┉─ • ─┉─    ┑ 
-${formattedCmds}
-┕    ─┉─ • ─┉─   ┙ 
-
-Tip: Use ${prefix}menu to see all categories`
-      
-      const styledBody = await changeFont(bodyContent, getRandomFont())
-      const final = `\`\`\`┌────═━┈ ${config().BOT_NAME} ┈━═────┐
- ✇ ▸ Category: ${actualType.toUpperCase()}
- ✇ ▸ Commands: ${types[actualType].length}
- ✇ ▸ Prefix: ${prefix}
-└────────═━┈┈━═────────┘\`\`\`
-${readmore}
-
-${styledBody}`
-      return m.send(final)
+      return m.send(menu)
     }
     
     const date = new Date().toLocaleDateString()
@@ -100,37 +189,81 @@ ${styledBody}`
     const uptime = await secondsToHms(process.uptime())
     const memoryUsage = format(os.totalmem() - os.freemem())
     
-    let menu = `\`\`\`┌────═━┈ ${config().BOT_NAME} ┈━═────┐
- ✇ ▸ Owner: ${config().OWNER_NAME}
- ✇ ▸ User: ${m.pushName}
- ✇ ▸ Plugins: ${commands.length}
- ✇ ▸ Uptime: ${uptime}
- ✇ ▸ Memory: ${memoryUsage}
- ✇ ▸ Version: v${version}
- ✇ ▸ Platform: ${m.client.platform()}
-└───────═━┈┈━═──────┘\`\`\`
+    // Premium stats header with different style
+    let menu = `
+╔══════════════════════════════╗
+║     ✦ ${config().BOT_NAME} CONTROL PANEL ✦     ║
+╠══════════════════════════════╣
+║ 👤 User: ${m.pushName}
+║ 🏆 Owner: ${config().OWNER_NAME}
+║ 📊 Plugins: ${commands.length}
+║ ⏱️ Uptime: ${uptime}
+║ 💾 Memory: ${memoryUsage}
+║ 🔖 Version: v${version}
+║ 📱 Platform: ${m.client.platform()}
+╚══════════════════════════════╝
 ${readmore}
 
 `
 
     const categoryList = Object.keys(types).map(async (type) => {
       const cmdList = types[type].map(cmd => 
-        `│ ${prefix}${cmd.replace(/[^a-zA-Z0-9-+]/g, "")}`
+        `│ ▫️ ${prefix}${cmd.replace(/[^a-zA-Z0-9-+]/g, "")}`
       ).join('\n')
       const formattedCmds = await changeFont(cmdList, getRandomFont())
       const tty = await changeFont(type.toUpperCase(), "monospace")
       
-      return ` ┏ ${tty} ┓
-┍   ─┉─ • ─┉─    ┑ 
+      // Different category styles - alternating for visual variety
+      const categoryStyles = [
+        // Style 1: Modern boxes
+        `╭─────────────────────────────╮
+│  🎯 ${tty} (${types[type].length})
+├─────────────────────────────┤
 ${formattedCmds}
-┕    ─┉─ • ─┉─   ┙ `
+╰─────────────────────────────╯`,
+        
+        // Style 2: Neon borders
+        `▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+▓ ⚡ ${tty} • ${types[type].length} commands
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+${formattedCmds}
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀`,
+        
+        // Style 3: Clean minimal
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🔥 ${tty} • ${types[type].length} available
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${formattedCmds}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        
+        // Style 4: Gaming style
+        `████████████████████████████████
+██ 🎮 ${tty} - ${types[type].length} READY ██
+████████████████████████████████
+${formattedCmds}
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀`
+      ]
+      
+      const typeIndex = Object.keys(types).indexOf(type)
+      return categoryStyles[typeIndex % categoryStyles.length]
     })
 
     const resolvedCategoryList = await Promise.all(categoryList)
     menu += resolvedCategoryList.join('\n\n')
 
+    // Premium footer
+    menu += `
 
-    menu += `\n\nTip: Use ${prefix}menu [category] for specific commands`
+╔═══════════════════════════════╗
+║           💎 PREMIUM TIPS 💎           ║
+╠═══════════════════════════════╣
+║ • Use ${prefix}menu [category] for details
+║ • Commands update automatically
+║ • Type ${prefix}help for quick access
+║ • Enjoying the bot? Rate us! ⭐
+╚═══════════════════════════════╝
+
+⚡ Powered by Advanced AI • Built with ❤️`
 
     const final = menu.trim()
  try {
